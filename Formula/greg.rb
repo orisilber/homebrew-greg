@@ -1,8 +1,8 @@
 class Greg < Formula
   desc "Natural language to shell commands — powered by LLMs"
   homepage "https://github.com/orisilber/greg-cli"
-  url "https://github.com/orisilber/greg-cli/tarball/main"
-  sha256 "83cad2c8e3c9abf45f606d39c93cb39312d5577274825ed4637336555ea2b546"
+  url "https://github.com/orisilber/greg-cli/archive/refs/tags/v1.0.0.tar.gz"
+  sha256 "c544f98b9ae2f3054cd25f3f081c24b1e0de89858436971cda10320728d387d4"
   version "1.0.0"
   license "MIT"
 

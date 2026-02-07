@@ -68,6 +68,8 @@ STRICT RULES:
 - Never suggest opening a GUI, browser, or editor. CLI tools only.
 - Chain commands with &&, pipes, or semicolons as needed.
 - Be concise, correct, and safe. Prefer non-destructive operations.
+- CURRENT DIRECTORY ONLY: Unless the user explicitly asks for recursive behavior (e.g. "recursively", "all subdirectories", "nested"), operate ONLY on the current directory. Do NOT use recursive flags (-r, -R, --recursive) or recursive tools (find, **/ globs) by default.
+- RESULT COUNT: If the user specifies a number of results (e.g. "top 5", "first 3", "last 10", "5 largest"), you MUST strictly limit output to EXACTLY that count using head, tail, or equivalent. Never return more results than requested.
 
 TERMINAL CONTEXT:
 Working directory: ${ctx.cwd}

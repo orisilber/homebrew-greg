@@ -220,6 +220,8 @@ STRICT RULES:
 - Never suggest opening a GUI, browser, or editor. CLI tools only.
 - Chain commands with &&, pipes, or semicolons as needed.
 - Be concise, correct, and safe. Prefer non-destructive operations.
+- CURRENT DIRECTORY ONLY: Unless the user explicitly asks for recursive behavior (e.g. "recursively", "all subdirectories", "nested"), operate ONLY on the current directory. Do NOT use recursive flags (-r, -R, --recursive) or recursive tools (find, **/ globs) by default.
+- RESULT COUNT: If the user specifies a number of results (e.g. "top 5", "first 3", "last 10", "5 largest"), you MUST strictly limit output to EXACTLY that count using head, tail, or equivalent. Never return more results than requested.
 
 TERMINAL CONTEXT:
 Working directory: ${ctx.cwd}
@@ -434,22 +436,27 @@ import { readFileSync as readFileSync3, writeFileSync as writeFileSync2, unlinkS
 import { tmpdir } from "os";
 import { join as join3 } from "path";
 import { execSync as execSync3, spawnSync as spawnSync2 } from "child_process";
+function cleanupFile(path) {
+  try {
+    unlinkSync(path);
+  } catch {}
+}
 function editorMode() {
   const tmpFile = join3(tmpdir(), `greg-${Date.now()}.sh`);
   writeFileSync2(tmpFile, "", { mode: 448 });
+  const onExit = () => cleanupFile(tmpFile);
+  process.on("SIGINT", onExit);
+  process.on("SIGTERM", onExit);
+  process.on("exit", onExit);
   const editor = process.env.EDITOR || "vim";
   const result = spawnSync2(editor, [tmpFile], { stdio: "inherit" });
   if (result.status !== 0) {
     console.error(C.red("Editor exited with an error."));
-    try {
-      unlinkSync(tmpFile);
-    } catch {}
+    cleanupFile(tmpFile);
     process.exit(1);
   }
   const script = readFileSync3(tmpFile, "utf-8").trim();
-  try {
-    unlinkSync(tmpFile);
-  } catch {}
+  cleanupFile(tmpFile);
   if (!script) {
     console.error(C.dim("Empty file, nothing to run."));
     process.exit(0);

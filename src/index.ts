@@ -4,3 +4,4 @@ export * from "./afm";
 export * from "./llm";
 export * from "./setup";
 export * from "./editor";
+export * from "./skills";

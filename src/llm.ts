@@ -5,6 +5,7 @@ import { execSync } from "child_process";
 import type { GregConfig, TerminalContext } from "./shared";
 import { stripCodeFences } from "./shared";
 import { callAFM } from "./afm";
+import { loadSkills, matchSkills, buildSkillsPromptSection } from "./skills";
 
 // ── Terminal context ────────────────────────────────────────────────────────
 
@@ -155,7 +156,15 @@ export async function getCommand(
 ): Promise<string> {
   const limits = config.provider === "afm" ? LIMITS_AFM : LIMITS_CLOUD;
   const ctx = getTerminalContext(limits);
-  const systemPrompt = buildSystemPrompt(ctx);
+  let systemPrompt = buildSystemPrompt(ctx);
+
+  // Load and inject matching skills
+  const allSkills = loadSkills();
+  const matched = matchSkills(allSkills, prompt);
+  const skillsSection = buildSkillsPromptSection(matched);
+  if (skillsSection) {
+    systemPrompt += "\n" + skillsSection;
+  }
 
   let raw: string;
   switch (config.provider) {

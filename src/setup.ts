@@ -5,7 +5,7 @@ import { isAFMSupported, ensureAFMBinary, checkAFMAvailability } from "./afm";
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4o-mini",
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
 };
 
 export async function setup(): Promise<GregConfig> {

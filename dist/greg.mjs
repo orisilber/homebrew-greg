@@ -431,7 +431,7 @@ async function getCommand(config, prompt) {
 var DEFAULT_MODELS = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4o-mini",
-  gemini: "gemini-2.0-flash"
+  gemini: "gemini-2.5-flash"
 };
 async function setup() {
   console.error("");

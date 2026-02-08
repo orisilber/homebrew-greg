@@ -3,9 +3,10 @@ import { homedir, platform, arch } from "os";
 import { join } from "path";
 import { execSync } from "child_process";
 import type { GregConfig, TerminalContext } from "./shared";
-import { stripCodeFences } from "./shared";
+import { stripCodeFences, C } from "./shared";
 import { callAFM } from "./afm";
 import { loadSkills, matchSkills, buildSkillsPromptSection } from "./skills";
+import type { Skill } from "./skills";
 
 // ── Terminal context ────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ ${ctx.history}`;
 // ── Provider calls ──────────────────────────────────────────────────────────
 
 async function callAnthropic(
-  config: GregConfig, systemPrompt: string, userPrompt: string
+  config: GregConfig, systemPrompt: string, userPrompt: string, maxTokens: number = 1024
 ): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -97,7 +98,7 @@ async function callAnthropic(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: config.model, max_tokens: 1024,
+      model: config.model, max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     }),
@@ -108,7 +109,7 @@ async function callAnthropic(
 }
 
 async function callOpenAI(
-  config: GregConfig, systemPrompt: string, userPrompt: string
+  config: GregConfig, systemPrompt: string, userPrompt: string, maxTokens: number = 1024
 ): Promise<string> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -117,7 +118,7 @@ async function callOpenAI(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: config.model, max_tokens: 1024,
+      model: config.model, max_tokens: maxTokens,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -130,7 +131,7 @@ async function callOpenAI(
 }
 
 async function callGemini(
-  config: GregConfig, systemPrompt: string, userPrompt: string
+  config: GregConfig, systemPrompt: string, userPrompt: string, maxTokens: number = 1024
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`;
   const res = await fetch(url, {
@@ -142,6 +143,7 @@ async function callGemini(
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: maxTokens },
     }),
   });
   const data = (await res.json()) as any;
@@ -149,7 +151,79 @@ async function callGemini(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-// ── Dispatcher ──────────────────────────────────────────────────────────────
+// ── LLM dispatcher ─────────────────────────────────────────────────────────
+
+async function callLLM(
+  config: GregConfig, systemPrompt: string, userPrompt: string, maxTokens: number = 1024
+): Promise<string> {
+  switch (config.provider) {
+    case "afm":       return callAFM(systemPrompt, userPrompt);
+    case "anthropic":  return await callAnthropic(config, systemPrompt, userPrompt, maxTokens);
+    case "gemini":     return await callGemini(config, systemPrompt, userPrompt, maxTokens);
+    case "openai": default:
+      return await callOpenAI(config, systemPrompt, userPrompt, maxTokens);
+  }
+}
+
+// ── AI skill matching ───────────────────────────────────────────────────────
+
+async function matchSkillsWithAI(
+  config: GregConfig, skills: Skill[], userPrompt: string
+): Promise<Skill[]> {
+  const globalSkills = skills.filter((s) => !s.description);
+  const conditionalSkills = skills.filter((s) => s.description);
+
+  if (conditionalSkills.length === 0) {
+    logSkills(globalSkills);
+    return globalSkills;
+  }
+
+  // AFM: use fast keyword matching (no extra API call)
+  if (config.provider === "afm") {
+    const matched = matchSkills(skills, userPrompt);
+    logSkills(matched);
+    return matched;
+  }
+
+  console.error(C.dim("  Matching skills..."));
+
+  const skillList = conditionalSkills
+    .map((s) => `- "${s.name}": ${s.description}`)
+    .join("\n");
+
+  const systemPrompt =
+    `You select which skills are relevant to a user's CLI request. ` +
+    `Return ONLY a JSON array of skill names that match. Return [] if none are relevant. ` +
+    `No explanation, no markdown, no code fences.`;
+
+  const matchPrompt = `Skills:\n${skillList}\n\nRequest: ${userPrompt}`;
+
+  try {
+    const raw = stripCodeFences(
+      await callLLM(config, systemPrompt, matchPrompt, 100)
+    );
+    const names: string[] = JSON.parse(raw);
+    const matched = conditionalSkills.filter((s) => names.includes(s.name));
+    const result = [...globalSkills, ...matched];
+    logSkills(result);
+    return result;
+  } catch {
+    // Fall back to keyword matching on parse/network failure
+    const result = matchSkills(skills, userPrompt);
+    logSkills(result);
+    return result;
+  }
+}
+
+function logSkills(skills: Skill[]): void {
+  for (const s of skills) {
+    if (s.description) {
+      console.error(C.green(`  Using skill: ${s.name}`));
+    }
+  }
+}
+
+// ── Command generation ──────────────────────────────────────────────────────
 
 export async function getCommand(
   config: GregConfig, prompt: string
@@ -158,22 +232,15 @@ export async function getCommand(
   const ctx = getTerminalContext(limits);
   let systemPrompt = buildSystemPrompt(ctx);
 
-  // Load and inject matching skills
+  // Load and match skills (AI-powered for cloud providers, keyword for AFM)
   const allSkills = loadSkills();
-  const matched = matchSkills(allSkills, prompt);
+  const matched = await matchSkillsWithAI(config, allSkills, prompt);
   const skillsSection = buildSkillsPromptSection(matched);
   if (skillsSection) {
     systemPrompt += "\n" + skillsSection;
   }
 
-  let raw: string;
-  switch (config.provider) {
-    case "afm":       raw = callAFM(systemPrompt, prompt); break;
-    case "anthropic":  raw = await callAnthropic(config, systemPrompt, prompt); break;
-    case "gemini":     raw = await callGemini(config, systemPrompt, prompt); break;
-    case "openai": default:
-      raw = await callOpenAI(config, systemPrompt, prompt); break;
-  }
-
+  console.error(C.dim("  Thinking..."));
+  const raw = await callLLM(config, systemPrompt, prompt);
   return stripCodeFences(raw);
 }

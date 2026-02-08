@@ -31,6 +31,7 @@ import { createInterface } from "readline";
 var __dirname2 = dirname(new URL(import.meta.url).pathname);
 var CONFIG_DIR = join(homedir(), ".config", "greg");
 var CONFIG_FILE = join(CONFIG_DIR, "config.json");
+var SKILLS_DIR = join(CONFIG_DIR, "skills");
 var AFM_SWIFT_SRC = join(__dirname2, "afm-bridge.swift");
 var AFM_BINARY = join(CONFIG_DIR, "afm-bridge");
 var C = {
@@ -170,10 +171,114 @@ function callAFM(systemPrompt, userPrompt) {
   return (result.stdout || "").trim();
 }
 // src/llm.ts
-import { readFileSync as readFileSync2, existsSync as existsSync3 } from "fs";
+import { readFileSync as readFileSync3, existsSync as existsSync4 } from "fs";
 import { homedir as homedir2, platform as platform2, arch } from "os";
-import { join as join2 } from "path";
+import { join as join3 } from "path";
 import { execSync as execSync2 } from "child_process";
+
+// src/skills.ts
+import {
+  readdirSync,
+  readFileSync as readFileSync2,
+  writeFileSync as writeFileSync2,
+  mkdirSync as mkdirSync3,
+  existsSync as existsSync3
+} from "fs";
+import { join as join2, basename } from "path";
+function parseSkillFile(raw, filePath) {
+  const trimmed = raw.trim();
+  if (!trimmed)
+    return null;
+  const name = basename(filePath).replace(/\.md$/, "");
+  let description = "";
+  let content = trimmed;
+  const fmMatch = trimmed.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+  if (fmMatch) {
+    const frontmatter = fmMatch[1];
+    content = fmMatch[2].trim();
+    const descMatch = frontmatter.match(/^description:\s*(.+)$/m);
+    if (descMatch) {
+      description = descMatch[1].trim();
+    }
+  }
+  if (!content)
+    return null;
+  return { name, description, content, filePath };
+}
+function loadSkills() {
+  if (!existsSync3(SKILLS_DIR))
+    return [];
+  const skills = [];
+  try {
+    const files = readdirSync(SKILLS_DIR).filter((f) => f.endsWith(".md"));
+    for (const file of files) {
+      const filePath = join2(SKILLS_DIR, file);
+      try {
+        const raw = readFileSync2(filePath, "utf-8");
+        const skill = parseSkillFile(raw, filePath);
+        if (skill)
+          skills.push(skill);
+      } catch {}
+    }
+  } catch {}
+  return skills;
+}
+function tokenize(text) {
+  return new Set(text.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter((w) => w.length > 2));
+}
+function matchSkills(skills, userPrompt) {
+  if (skills.length === 0)
+    return [];
+  const promptTokens = tokenize(userPrompt);
+  return skills.filter((skill) => {
+    if (!skill.description)
+      return true;
+    const descTokens = tokenize(skill.description);
+    let matches = 0;
+    for (const token of descTokens) {
+      if (promptTokens.has(token))
+        matches++;
+    }
+    return matches > 0;
+  });
+}
+function buildSkillsPromptSection(skills) {
+  if (skills.length === 0)
+    return "";
+  const sections = skills.map((s) => `[Skill: ${s.name}]
+${s.content}`);
+  return `
+ACTIVE SKILLS:
+${sections.join(`
+
+`)}`;
+}
+function ensureSkillsDir() {
+  mkdirSync3(SKILLS_DIR, { recursive: true });
+}
+function createSkillFile(name) {
+  ensureSkillsDir();
+  const fileName = name.endsWith(".md") ? name : `${name}.md`;
+  const filePath = join2(SKILLS_DIR, fileName);
+  if (!existsSync3(filePath)) {
+    const template = `---
+description: Describe when this skill should activate
+---
+
+Your skill instructions here.
+`;
+    writeFileSync2(filePath, template, { mode: 420 });
+  }
+  return filePath;
+}
+function listSkills() {
+  return loadSkills().map((s) => ({
+    name: s.name,
+    description: s.description || "(always active)"
+  }));
+}
+
+// src/llm.ts
 var LIMITS_CLOUD = { maxHistoryLines: 30, maxDirLines: 50 };
 var LIMITS_AFM = { maxHistoryLines: 5, maxDirLines: 15 };
 function getTerminalContext(limits = LIMITS_CLOUD) {
@@ -182,9 +287,9 @@ function getTerminalContext(limits = LIMITS_CLOUD) {
   const archName = arch();
   let history = "";
   try {
-    const histFile = join2(homedir2(), ".zsh_history");
-    if (existsSync3(histFile)) {
-      const raw = readFileSync2(histFile, "utf-8");
+    const histFile = join3(homedir2(), ".zsh_history");
+    if (existsSync4(histFile)) {
+      const raw = readFileSync3(histFile, "utf-8");
       const lines = raw.split(`
 `).map((l) => l.replace(/^: \d+:\d+;/, "").trim()).filter(Boolean).slice(-limits.maxHistoryLines);
       history = lines.join(`
@@ -296,7 +401,14 @@ async function callGemini(config, systemPrompt, userPrompt) {
 async function getCommand(config, prompt) {
   const limits = config.provider === "afm" ? LIMITS_AFM : LIMITS_CLOUD;
   const ctx = getTerminalContext(limits);
-  const systemPrompt = buildSystemPrompt(ctx);
+  let systemPrompt = buildSystemPrompt(ctx);
+  const allSkills = loadSkills();
+  const matched = matchSkills(allSkills, prompt);
+  const skillsSection = buildSkillsPromptSection(matched);
+  if (skillsSection) {
+    systemPrompt += `
+` + skillsSection;
+  }
   let raw;
   switch (config.provider) {
     case "afm":
@@ -432,9 +544,9 @@ Saved to ${CONFIG_FILE}`));
   return config;
 }
 // src/editor.ts
-import { readFileSync as readFileSync3, writeFileSync as writeFileSync2, unlinkSync } from "fs";
+import { readFileSync as readFileSync4, writeFileSync as writeFileSync3, unlinkSync } from "fs";
 import { tmpdir } from "os";
-import { join as join3 } from "path";
+import { join as join4 } from "path";
 import { execSync as execSync3, spawnSync as spawnSync2 } from "child_process";
 function cleanupFile(path) {
   try {
@@ -442,8 +554,8 @@ function cleanupFile(path) {
   } catch {}
 }
 function editorMode() {
-  const tmpFile = join3(tmpdir(), `greg-${Date.now()}.sh`);
-  writeFileSync2(tmpFile, "", { mode: 448 });
+  const tmpFile = join4(tmpdir(), `greg-${Date.now()}.sh`);
+  writeFileSync3(tmpFile, "", { mode: 448 });
   const onExit = () => cleanupFile(tmpFile);
   process.on("SIGINT", onExit);
   process.on("SIGTERM", onExit);
@@ -455,7 +567,7 @@ function editorMode() {
     cleanupFile(tmpFile);
     process.exit(1);
   }
-  const script = readFileSync3(tmpFile, "utf-8").trim();
+  const script = readFileSync4(tmpFile, "utf-8").trim();
   cleanupFile(tmpFile);
   if (!script) {
     console.error(C.dim("Empty file, nothing to run."));
@@ -473,10 +585,63 @@ function editorMode() {
   }
 }
 // bin/greg.ts
+import { spawnSync as spawnSync3 } from "child_process";
 async function main() {
   const args = process.argv.slice(2);
   if (args[0] === "--setup") {
     await setup();
+    return;
+  }
+  if (args[0] === "--skills") {
+    const sub = args[1];
+    if (sub === "add" && args[2]) {
+      const filePath = createSkillFile(args[2]);
+      const editor2 = process.env.EDITOR || "vim";
+      spawnSync3(editor2, [filePath], { stdio: "inherit" });
+      console.error(C.green(`Skill saved: ${filePath}`));
+      return;
+    }
+    if (sub === "edit" && args[2]) {
+      const skills2 = listSkills();
+      const match = skills2.find((s) => s.name === args[2]);
+      if (!match) {
+        console.error(C.red(`Skill "${args[2]}" not found.`));
+        console.error(C.dim("Available skills: " + (skills2.map((s) => s.name).join(", ") || "none")));
+        process.exit(1);
+      }
+      const filePath = `${SKILLS_DIR}/${args[2]}.md`;
+      const editor2 = process.env.EDITOR || "vim";
+      spawnSync3(editor2, [filePath], { stdio: "inherit" });
+      console.error(C.green(`Skill updated: ${filePath}`));
+      return;
+    }
+    if (sub === "list" || !sub) {
+      const skills2 = listSkills();
+      if (skills2.length === 0) {
+        console.error(C.dim("No skills found."));
+        console.error(C.dim(`Add one with: greg --skills add <name>`));
+        console.error(C.dim(`Skills directory: ${SKILLS_DIR}`));
+      } else {
+        console.error(C.bold(`Skills:
+`));
+        for (const s of skills2) {
+          console.error(`  ${C.green(s.name)}  ${C.dim(s.description)}`);
+        }
+        console.error("");
+        console.error(C.dim(`Directory: ${SKILLS_DIR}`));
+      }
+      return;
+    }
+    if (sub === "path") {
+      console.log(SKILLS_DIR);
+      return;
+    }
+    console.error(C.bold("Usage:"));
+    console.error(`  greg --skills              ${C.dim("List all skills")}`);
+    console.error(`  greg --skills list         ${C.dim("List all skills")}`);
+    console.error(`  greg --skills add <name>   ${C.dim("Create and edit a new skill")}`);
+    console.error(`  greg --skills edit <name>  ${C.dim("Edit an existing skill")}`);
+    console.error(`  greg --skills path         ${C.dim("Print skills directory path")}`);
     return;
   }
   if (args.length === 0) {

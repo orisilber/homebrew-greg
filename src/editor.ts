@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { spawnSync } from "child_process";
-import { C } from "./shared";
+import { C } from "./utils/colors";
 
 function cleanupFile(path: string): void {
   try { unlinkSync(path); } catch {}

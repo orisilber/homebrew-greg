@@ -1,5 +1,8 @@
-import type { GregConfig, Provider } from "./shared";
-import { C, ask, saveConfig, CONFIG_FILE } from "./shared";
+import type { GregConfig, Provider } from "./types";
+import { C } from "./utils/colors";
+import { ask } from "./utils/input";
+import { saveConfig } from "./config/config";
+import { CONFIG_FILE } from "./config/paths";
 import { isAFMSupported, ensureAFMBinary, checkAFMAvailability } from "./afm";
 
 const DEFAULT_MODELS: Record<string, string> = {

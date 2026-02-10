@@ -1,7 +1,7 @@
 import { mkdirSync, existsSync } from "fs";
 import { platform } from "os";
 import { execSync, spawnSync } from "child_process";
-import { CONFIG_DIR, AFM_SWIFT_SRC, AFM_BINARY } from "./shared";
+import { CONFIG_DIR, AFM_SWIFT_SRC, AFM_BINARY } from "./config/paths";
 
 export function isAFMSupported(): boolean {
   return platform() === "darwin";

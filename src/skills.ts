@@ -6,7 +6,7 @@ import {
   existsSync,
 } from "fs";
 import { join, basename } from "path";
-import { SKILLS_DIR } from "./shared";
+import { SKILLS_DIR } from "./config/paths";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

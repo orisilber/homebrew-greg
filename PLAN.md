@@ -113,7 +113,7 @@ greg/
 
 Each step is one PR. All existing tests must pass at each step (only import paths change, no logic changes).
 
-### PR 1 — Extract types, config, utils
+### PR 1 — Extract types, config, utils ✅
 
 Move out of `shared.ts`:
 - Types → `src/types.ts`

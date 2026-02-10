@@ -587,15 +587,15 @@ Saved to ${CONFIG_FILE}`));
 import { readFileSync as readFileSync4, writeFileSync as writeFileSync3, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join as join4 } from "path";
-import { execSync as execSync3, spawnSync as spawnSync2 } from "child_process";
+import { spawnSync as spawnSync2 } from "child_process";
 function cleanupFile(path) {
   try {
     unlinkSync(path);
   } catch {}
 }
 function editorMode() {
-  const tmpFile = join4(tmpdir(), `greg-${Date.now()}.sh`);
-  writeFileSync3(tmpFile, "", { mode: 448 });
+  const tmpFile = join4(tmpdir(), `greg-${Date.now()}.txt`);
+  writeFileSync3(tmpFile, "", { mode: 384 });
   const onExit = () => cleanupFile(tmpFile);
   process.on("SIGINT", onExit);
   process.on("SIGTERM", onExit);
@@ -607,22 +607,12 @@ function editorMode() {
     cleanupFile(tmpFile);
     process.exit(1);
   }
-  const script = readFileSync4(tmpFile, "utf-8").trim();
+  const prompt = readFileSync4(tmpFile, "utf-8").trim();
   cleanupFile(tmpFile);
-  if (!script) {
-    console.error(C.dim("Empty file, nothing to run."));
-    process.exit(0);
+  if (!prompt) {
+    return null;
   }
-  console.error("");
-  console.error(C.dim("─────────────────────────────────────────"));
-  console.error(`  ${C.greenBold(script)}`);
-  console.error(C.dim("─────────────────────────────────────────"));
-  console.error("");
-  try {
-    execSync3(script, { stdio: "inherit", shell: "/bin/zsh" });
-  } catch (err) {
-    process.exit(err.status ?? 1);
-  }
+  return prompt;
 }
 // bin/greg.ts
 import { spawnSync as spawnSync3 } from "child_process";
@@ -684,15 +674,21 @@ async function main() {
     console.error(`  greg --skills path         ${C.dim("Print skills directory path")}`);
     return;
   }
-  if (args.length === 0) {
-    editorMode();
-    return;
-  }
   let config = loadConfig();
   if (!config) {
     config = await setup();
   }
-  const prompt = args.join(" ");
+  let prompt;
+  if (args.length === 0) {
+    const editorPrompt = editorMode();
+    if (!editorPrompt) {
+      console.error(C.dim("Empty prompt, nothing to do."));
+      process.exit(0);
+    }
+    prompt = editorPrompt;
+  } else {
+    prompt = args.join(" ");
+  }
   let command;
   try {
     command = await getCommand(config, prompt);
@@ -721,8 +717,8 @@ API error: ${err.message}`));
     }
   }
   try {
-    const { execSync: execSync4 } = await import("child_process");
-    execSync4(command, { stdio: "inherit", shell: "/bin/zsh" });
+    const { execSync: execSync3 } = await import("child_process");
+    execSync3(command, { stdio: "inherit", shell: "/bin/zsh" });
   } catch (err) {
     process.exit(err.status ?? 1);
   }

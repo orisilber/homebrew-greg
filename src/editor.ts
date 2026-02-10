@@ -1,16 +1,16 @@
 import { readFileSync, writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { execSync, spawnSync } from "child_process";
+import { spawnSync } from "child_process";
 import { C } from "./shared";
 
 function cleanupFile(path: string): void {
   try { unlinkSync(path); } catch {}
 }
 
-export function editorMode(): void {
-  const tmpFile = join(tmpdir(), `greg-${Date.now()}.sh`);
-  writeFileSync(tmpFile, "", { mode: 0o700 });
+export function editorMode(): string | null {
+  const tmpFile = join(tmpdir(), `greg-${Date.now()}.txt`);
+  writeFileSync(tmpFile, "", { mode: 0o600 });
 
   // Ensure cleanup on unexpected termination (Ctrl+C, SIGTERM, etc.)
   const onExit = () => cleanupFile(tmpFile);
@@ -27,23 +27,12 @@ export function editorMode(): void {
     process.exit(1);
   }
 
-  const script = readFileSync(tmpFile, "utf-8").trim();
+  const prompt = readFileSync(tmpFile, "utf-8").trim();
   cleanupFile(tmpFile);
 
-  if (!script) {
-    console.error(C.dim("Empty file, nothing to run."));
-    process.exit(0);
+  if (!prompt) {
+    return null;
   }
 
-  console.error("");
-  console.error(C.dim("─────────────────────────────────────────"));
-  console.error(`  ${C.greenBold(script)}`);
-  console.error(C.dim("─────────────────────────────────────────"));
-  console.error("");
-
-  try {
-    execSync(script, { stdio: "inherit", shell: "/bin/zsh" });
-  } catch (err: any) {
-    process.exit(err.status ?? 1);
-  }
+  return prompt;
 }

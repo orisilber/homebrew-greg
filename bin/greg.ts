@@ -68,19 +68,24 @@ async function main(): Promise<void> {
     return;
   }
 
-  // No args: open editor, run the script directly
-  if (args.length === 0) {
-    editorMode();
-    return;
-  }
-
   // Load or create config
   let config = loadConfig();
   if (!config) {
     config = await setup();
   }
 
-  const prompt = args.join(" ");
+  // No args: open editor to write a prompt
+  let prompt: string;
+  if (args.length === 0) {
+    const editorPrompt = editorMode();
+    if (!editorPrompt) {
+      console.error(C.dim("Empty prompt, nothing to do."));
+      process.exit(0);
+    }
+    prompt = editorPrompt;
+  } else {
+    prompt = args.join(" ");
+  }
 
   // Call LLM
   let command: string;

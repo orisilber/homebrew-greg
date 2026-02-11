@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyManager: HotkeyManager!
     private var statusItem: NSStatusItem!
     private var clickMonitor: Any?
+    private var appActivationObserver: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Menu bar app — no dock icon
@@ -17,10 +18,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Floating panel
         panel = FloatingPanel(state: panelState)
         panel.onHide = { [weak self] in
-            self?.removeClickMonitor()
+            self?.removeMonitors()
         }
 
-        // Global hotkey (Option+Shift+Space)
+        // Global hotkey (Ctrl+Shift+Space)
         hotkeyManager = HotkeyManager { [weak self] in
             self?.togglePanel()
         }
@@ -65,12 +66,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.panel.hide()
         }
+
+        // Dismiss when another app activates (Cmd+Tab, clicking another window, etc.)
+        appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.panel.hide()
+        }
     }
 
-    private func removeClickMonitor() {
+    private func removeMonitors() {
         if let monitor = clickMonitor {
             NSEvent.removeMonitor(monitor)
             clickMonitor = nil
+        }
+        if let observer = appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appActivationObserver = nil
         }
     }
 }

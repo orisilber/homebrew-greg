@@ -48,11 +48,6 @@ class FloatingPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
 
-    override func resignKey() {
-        super.resignKey()
-        hide()
-    }
-
     override func cancelOperation(_ sender: Any?) {
         hide()
     }

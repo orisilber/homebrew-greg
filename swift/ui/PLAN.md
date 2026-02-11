@@ -124,7 +124,7 @@ Files:
 
 Use Carbon's `RegisterEventHotKey` API — it's the most reliable for global hotkeys on macOS and doesn't require accessibility permissions just for the hotkey itself.
 
-Default: **Option+Shift+Space**
+Default: **Ctrl+Shift+Space**
 
 ```
 hotkey → togglePanel()
@@ -142,12 +142,12 @@ The hotkey is user-configurable via `~/.config/greg/config.json`:
   "model": "claude-sonnet-4-20250514",
   "hotkey": {
     "key": "Space",
-    "modifiers": ["Option", "Shift"]
+    "modifiers": ["Control", "Shift"]
   }
 }
 ```
 
-If `hotkey` is not set, defaults to Option+Shift+Space. The app watches the config file for changes and re-registers the hotkey on update.
+If `hotkey` is not set, defaults to Ctrl+Shift+Space. The app watches the config file for changes and re-registers the hotkey on update.
 
 Supported modifier values: `"Command"`, `"Option"`, `"Shift"`, `"Control"`.
 Key values follow the Carbon key code names (e.g. `"Space"`, `"A"`, `"Return"`, `"F1"`, etc.).
@@ -241,12 +241,12 @@ The cask installs `Greg.app` into `/Applications`.
 
 ## Implementation Order
 
-### Phase 1 — Floating window shell
-- [ ] App bundle with LSUIElement
-- [ ] NSPanel that appears/disappears
-- [ ] Global hotkey (Cmd+Shift+G)
-- [ ] Basic SwiftUI layout (input + output area)
-- [ ] Esc and click-outside to dismiss
+### Phase 1 — Floating window shell ✅
+- [x] App bundle with LSUIElement
+- [x] NSPanel that appears/disappears
+- [x] Global hotkey (Ctrl+Shift+Space)
+- [x] Basic SwiftUI layout (input + output area)
+- [x] Esc, click-outside, and lose-focus to dismiss
 
 ### Phase 2 — LLM integration
 - [ ] Config reader (shared config.json)

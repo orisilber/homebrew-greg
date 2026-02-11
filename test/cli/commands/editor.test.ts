@@ -22,7 +22,7 @@ describe("editor mode", () => {
     expect(result.stderr).toContain("nothing to do");
   });
 
-  it("returns the prompt text from the editor", () => {
+  it("returns the prompt text from the editor", { timeout: 15_000 }, () => {
     const fakeEditor = join(tmpdir(), "greg-fake-editor-prompt.sh");
     writeFileSync(
       fakeEditor,

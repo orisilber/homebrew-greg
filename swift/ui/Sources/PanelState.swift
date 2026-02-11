@@ -6,6 +6,8 @@ class PanelState: ObservableObject {
     @Published var response: String = ""
     @Published var isLoading: Bool = false
     @Published var showCount: Int = 0
+    @Published var context: String? = nil
+    @Published var clipboardText: String? = nil
 
     private var config: GregConfig?
     private var client: LLMClient?
@@ -36,14 +38,45 @@ class PanelState: ObservableObject {
         input = ""
         response = ""
         isLoading = false
+        context = nil
+        clipboardText = nil
+    }
+
+    /// Use clipboard text as context.
+    func useClipboard() {
+        context = clipboardText
+        clipboardText = nil
     }
 
     func submit() {
-        let prompt = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        var prompt = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty else { return }
         guard let client = client else {
             response = "No config found. Run `greg --setup` in terminal to configure."
             return
+        }
+
+        // /c prefix: pull clipboard into context
+        if prompt.hasPrefix("/c ") || prompt.hasPrefix("/c\n") {
+            prompt = String(prompt.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+            if let clip = ClipboardReader.text() {
+                context = clip
+            }
+            guard !prompt.isEmpty else { return }
+        }
+
+        // Build the user prompt, injecting context if present
+        var userPrompt = prompt
+        if let context = context, !context.isEmpty {
+            userPrompt = """
+            The user provided the following context:
+
+            ```
+            \(context)
+            ```
+
+            User's question: \(prompt)
+            """
         }
 
         input = ""
@@ -54,7 +87,7 @@ class PanelState: ObservableObject {
             do {
                 let result = try await client.generate(
                     systemPrompt: systemPrompt,
-                    userPrompt: prompt
+                    userPrompt: userPrompt
                 )
                 self.response = result
             } catch {

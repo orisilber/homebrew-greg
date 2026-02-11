@@ -56,6 +56,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPanel() {
         panelState.reset()
+
+        // Offer clipboard content as context if available
+        panelState.clipboardText = ClipboardReader.text()
+
         panel.centerOnScreen()
         panel.makeKeyAndOrderFront(nil)
         panelState.didShow()

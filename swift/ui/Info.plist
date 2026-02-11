@@ -18,7 +18,5 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
-    <key>NSAccessibilityUsageDescription</key>
-    <string>Greg needs accessibility access to read selected text from other applications.</string>
 </dict>
 </plist>

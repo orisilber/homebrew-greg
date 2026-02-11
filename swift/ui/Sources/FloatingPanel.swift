@@ -17,7 +17,7 @@ class FloatingPanel: NSPanel {
         self.isFloatingPanel = true
         self.hidesOnDeactivate = false
         self.becomesKeyOnlyIfNeeded = false
-        self.isMovableByWindowBackground = true
+        self.isMovableByWindowBackground = false
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = true

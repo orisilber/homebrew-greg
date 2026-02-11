@@ -8,20 +8,20 @@ A native macOS floating window (like Raycast/Spotlight) that provides a GUI inte
 
 ### Flow 1 — Quick prompt
 
-1. User presses the global hotkey (default: **Option+Shift+Space**) from anywhere
+1. User presses the global hotkey (default: **Ctrl+Shift+Space**) from anywhere
 2. Floating panel appears centered on screen
 3. Cursor is in the text input at the bottom
 4. User types a prompt, hits Enter
 5. LLM response appears above the input
 6. User presses **Esc** or clicks outside to dismiss
 
-### Flow 2 — Context from selection
+### Flow 2 — Context from clipboard
 
-1. User selects text in any app (e.g. a code block in VS Code)
+1. User copies text in any app (Cmd+C)
 2. User presses the global hotkey
-3. Floating panel appears with the selected text shown as context (quoted/dimmed above the input)
-4. User types a follow-up prompt referencing the selection
-5. LLM receives both the selection and the prompt
+3. Floating panel appears with clipboard preview and "Use as context" button
+4. User clicks the button (or types `/c question` to auto-attach clipboard)
+5. LLM receives both the clipboard context and the prompt
 6. Response appears above the input
 7. Esc or click outside to dismiss
 
@@ -38,8 +38,8 @@ A native macOS floating window (like Raycast/Spotlight) that provides a GUI inte
 │  └─────────────┘  └───────────┘ │
 │                                  │
 │  ┌─────────────┐  ┌───────────┐ │
-│  │ Accessibility│  │ LLM       │ │
-│  │ (AXUIElement)│  │ Client    │ │
+│  │ Clipboard    │  │ LLM       │ │
+│  │ Reader       │  │ Client    │ │
 │  └─────────────┘  └───────────┘ │
 │                                  │
 │  ┌─────────────────────────────┐ │
@@ -152,23 +152,17 @@ If `hotkey` is not set, defaults to Ctrl+Shift+Space. The app watches the config
 Supported modifier values: `"Command"`, `"Option"`, `"Shift"`, `"Control"`.
 Key values follow the Carbon key code names (e.g. `"Space"`, `"A"`, `"Return"`, `"F1"`, etc.).
 
-### 5. Text Selection via Accessibility
+### 5. Clipboard Context
 
-**File**: `swift/ui/Accessibility/SelectionReader.swift`
+**File**: `swift/ui/Sources/ClipboardReader.swift`
 
-Uses the macOS Accessibility API (`AXUIElement`) to read selected text from the frontmost app.
+Reads text from `NSPasteboard.general` for use as LLM context.
 
-Flow:
-1. On hotkey press, before showing the panel:
-2. Get the frontmost app's PID (`NSWorkspace.shared.frontmostApplication`)
-3. Create `AXUIElementCreateApplication(pid)`
-4. Get the focused element (`kAXFocusedUIElementAttribute`)
-5. Read selected text (`kAXSelectedTextAttribute`)
-6. If non-empty, pass it to the panel as context
+Two ways to add context:
+1. **`/c` prefix** — type `/c your question` and the clipboard is automatically injected as context
+2. **"Use as context" button** — when the clipboard has text, a banner appears offering to use it
 
-**Requires**: Accessibility permission (System Settings > Privacy > Accessibility)
-- The app should detect if permission is missing and prompt the user
-- Works without it (just no text selection feature)
+No special permissions required. Works with any app — just Cmd+C first.
 
 ### 6. LLM Client (Native Swift)
 
@@ -257,16 +251,30 @@ The cask installs `Greg.app` into `/Applications`.
 - [x] AFM provider (direct Foundation Models call)
 - [x] Async response display with loading state
 
-### Phase 3 — Text selection
-- [ ] Accessibility permission detection + prompt
-- [ ] AXUIElement selected text reader
-- [ ] Context banner in the UI
-- [ ] Inject selection into LLM context
+### Phase 3 — Context from clipboard ✅
+- [x] `/c` prefix command to pull clipboard into context
+- [x] "Use as context" button when clipboard has text
+- [x] Context banner in the UI (collapsible, char count)
+- [x] Inject context into LLM prompt
 
-### Phase 4 — Polish
+### Phase 4 — Polish & Streaming
+- [ ] Streaming responses (URLSession AsyncBytes, SSE parsing per provider)
+- [ ] Reasoning vs response in different colors (e.g. reasoning = dimmed/gray, response = primary)
+- [ ] Reasoning block: rolling 4-line window (stream in, drop oldest lines when exceeding 4)
 - [ ] Menu bar icon with quit/settings
 - [ ] Animate panel in/out
 - [ ] Vibrancy/blur background
-- [ ] Copy response to clipboard
+- [ ] Cmd+C copies full response when no text is selected (don't hijack partial selections)
 - [ ] History (up arrow for previous prompts)
+- [ ] Slash commands UX: highlight `/command` prefix in accent color while typing, show autocomplete tooltip with available commands and descriptions (e.g. `/c` — attach clipboard as context)
 - [ ] Error states (no API key, network failure)
+
+### Phase 5 — Image context (multimodal)
+- [ ] Read image types from NSPasteboard (.png, .tiff) on `/c` or clipboard offer
+- [ ] Convert to base64 PNG
+- [ ] Show image thumbnail in context banner
+- [ ] Anthropic: send as image content block (base64, media_type)
+- [ ] OpenAI: send as image_url content part (base64 data URI)
+- [ ] Gemini: send as inlineData part (base64, mimeType)
+- [ ] AFM: show unsupported message (no vision support)
+- [ ] Update LLMClient protocol to accept optional image data

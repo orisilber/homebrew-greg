@@ -1,9 +1,9 @@
 class Greg < Formula
   desc "Natural language to shell commands — powered by LLMs"
   homepage "https://github.com/orisilber/homebrew-greg"
-  url "https://github.com/orisilber/homebrew-greg/archive/refs/tags/v1.3.0.tar.gz"
-  sha256 "5055b68b4b6a07bda3ed1fe39db7b5cde6bfca81178a59a8d8505fcfbf50ce2a"
-  version "1.3.0"
+  url "https://github.com/orisilber/homebrew-greg/archive/refs/tags/v0.3.0.tar.gz"
+  sha256 "c64f429c7749550ac4d015d855011718bd22d480fff86008205fae97d09b8172"
+  version "0.3.0"
   license "MIT"
 
   depends_on "node"

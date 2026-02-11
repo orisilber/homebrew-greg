@@ -10,17 +10,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "Compiling..."
 xcrun swiftc \
-    "$DIR/Sources/main.swift" \
-    "$DIR/Sources/PanelState.swift" \
-    "$DIR/Sources/HotkeyManager.swift" \
-    "$DIR/Sources/FloatingPanel.swift" \
-    "$DIR/Sources/ContentView.swift" \
-    "$DIR/Sources/AppDelegate.swift" \
+    "$DIR/Sources/"*.swift \
     -o "$APP/Contents/MacOS/Greg" \
     -framework Cocoa \
     -framework Carbon \
     -framework SwiftUI \
     -framework Combine \
+    -framework FoundationModels \
     -Osize
 
 cp "$DIR/Info.plist" "$APP/Contents/"

@@ -9,18 +9,32 @@ struct ContentView: View {
             // Response area
             ScrollViewReader { proxy in
                 ScrollView {
-                    if state.response.isEmpty {
+                    if state.response.isEmpty && !state.isLoading {
                         Text("Ask Greg anything...")
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                     } else {
-                        Text(state.response)
-                            .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .textSelection(.enabled)
-                            .id("response")
+                        VStack(alignment: .leading, spacing: 8) {
+                            if state.isLoading && state.response.isEmpty {
+                                HStack(spacing: 6) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Thinking...")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding()
+                            }
+
+                            if !state.response.isEmpty {
+                                Text(state.response)
+                                    .font(.system(.body, design: .monospaced))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        .id("response")
                     }
                 }
                 .onChange(of: state.response) {
@@ -32,14 +46,22 @@ struct ContentView: View {
             Divider()
 
             // Input area
-            TextField("Ask Greg...", text: $state.input)
-                .textFieldStyle(.plain)
-                .font(.system(size: 16))
-                .padding(12)
-                .focused($isInputFocused)
-                .onSubmit {
-                    submitPrompt()
+            HStack {
+                TextField("Ask Greg...", text: $state.input)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 16))
+                    .focused($isInputFocused)
+                    .disabled(state.isLoading)
+                    .onSubmit {
+                        state.submit()
+                    }
+
+                if state.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
                 }
+            }
+            .padding(12)
         }
         .frame(width: 600, height: 400)
         .onChange(of: state.showCount) {
@@ -47,16 +69,5 @@ struct ContentView: View {
                 isInputFocused = true
             }
         }
-    }
-
-    private func submitPrompt() {
-        let prompt = state.input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !prompt.isEmpty else { return }
-
-        state.input = ""
-        state.response = "Thinking..."
-
-        // TODO: Phase 2 — call LLM
-        state.response = "LLM integration coming in Phase 2.\n\nYou asked: \(prompt)"
     }
 }

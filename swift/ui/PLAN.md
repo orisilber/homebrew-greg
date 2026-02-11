@@ -248,14 +248,14 @@ The cask installs `Greg.app` into `/Applications`.
 - [x] Basic SwiftUI layout (input + output area)
 - [x] Esc, click-outside, and lose-focus to dismiss
 
-### Phase 2 — LLM integration
-- [ ] Config reader (shared config.json)
-- [ ] LLM client protocol
-- [ ] Anthropic provider (simplest HTTP API)
-- [ ] OpenAI provider
-- [ ] Gemini provider
-- [ ] AFM provider (direct framework call)
-- [ ] Streaming response display
+### Phase 2 — LLM integration ✅
+- [x] Config reader (shared config.json)
+- [x] LLM client protocol
+- [x] Anthropic provider
+- [x] OpenAI provider
+- [x] Gemini provider
+- [x] AFM provider (direct Foundation Models call)
+- [x] Async response display with loading state
 
 ### Phase 3 — Text selection
 - [ ] Accessibility permission detection + prompt

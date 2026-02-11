@@ -140,7 +140,7 @@ Break `llm.ts` into:
 
 Move `src/afm-bridge.swift` → `swift/afm-bridge.swift`. Update the path reference in `config/paths.ts`.
 
-### PR 3 — Split CLI + skills
+### PR 3 — Split CLI + skills ✅
 
 - Create `src/cli/router.ts` — arg parsing and dispatch
 - Create `src/cli/commands/run.ts` — the default prompt→execute flow

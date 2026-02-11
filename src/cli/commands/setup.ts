@@ -1,9 +1,9 @@
-import type { GregConfig, Provider } from "./types";
-import { C } from "./utils/colors";
-import { ask } from "./utils/input";
-import { saveConfig } from "./config/config";
-import { CONFIG_FILE } from "./config/paths";
-import { isAFMSupported, ensureAFMBinary, checkAFMAvailability } from "./llm/providers/afm";
+import type { GregConfig, Provider } from "../../types";
+import { C } from "../../utils/colors";
+import { ask } from "../../utils/input";
+import { saveConfig } from "../../config/config";
+import { CONFIG_FILE } from "../../config/paths";
+import { isAFMSupported, ensureAFMBinary, checkAFMAvailability } from "../../llm/providers/afm";
 
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-20250514",

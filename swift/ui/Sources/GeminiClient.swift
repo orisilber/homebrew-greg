@@ -12,6 +12,7 @@ class GeminiClient: LLMClient {
     func stream(
         systemPrompt: String,
         userPrompt: String,
+        imageContext: ImageContext?,
         onChunk: @escaping @MainActor (StreamChunk) -> Void
     ) async throws {
         let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):streamGenerateContent?alt=sse")!
@@ -20,10 +21,23 @@ class GeminiClient: LLMClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
+        // Build user parts — text or multimodal (inlineData + text)
+        var userParts: [[String: Any]] = []
+        if let image = imageContext {
+            // Gemini multimodal: inlineData part
+            userParts.append([
+                "inlineData": [
+                    "mimeType": image.mimeType,
+                    "data": image.base64
+                ]
+            ])
+        }
+        userParts.append(["text": userPrompt])
+
         let body: [String: Any] = [
             "system_instruction": ["parts": [["text": systemPrompt]]],
             "contents": [
-                ["role": "user", "parts": [["text": userPrompt]]]
+                ["role": "user", "parts": userParts]
             ],
             "generationConfig": [
                 "maxOutputTokens": 16384,

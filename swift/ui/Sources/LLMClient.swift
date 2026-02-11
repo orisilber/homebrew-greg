@@ -10,9 +10,11 @@ enum StreamChunk {
 
 protocol LLMClient {
     /// Stream a response, calling the handler for each chunk on the main thread.
+    /// Optionally include image data for multimodal providers.
     func stream(
         systemPrompt: String,
         userPrompt: String,
+        imageContext: ImageContext?,
         onChunk: @escaping @MainActor (StreamChunk) -> Void
     ) async throws
 }

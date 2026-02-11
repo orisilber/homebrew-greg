@@ -12,6 +12,7 @@ class AnthropicClient: LLMClient {
     func stream(
         systemPrompt: String,
         userPrompt: String,
+        imageContext: ImageContext?,
         onChunk: @escaping @MainActor (StreamChunk) -> Void
     ) async throws {
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -21,13 +22,35 @@ class AnthropicClient: LLMClient {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "content-type")
 
+        // Build user message content — text or multimodal (image + text)
+        var userContent: Any
+        if let image = imageContext {
+            // Anthropic multimodal: array of content blocks
+            userContent = [
+                [
+                    "type": "image",
+                    "source": [
+                        "type": "base64",
+                        "media_type": image.mimeType,
+                        "data": image.base64
+                    ]
+                ] as [String: Any],
+                [
+                    "type": "text",
+                    "text": userPrompt
+                ] as [String: Any]
+            ]
+        } else {
+            userContent = userPrompt
+        }
+
         var body: [String: Any] = [
             "model": model,
             "max_tokens": 16384,
             "stream": true,
             "system": systemPrompt,
             "messages": [
-                ["role": "user", "content": userPrompt]
+                ["role": "user", "content": userContent]
             ]
         ]
 

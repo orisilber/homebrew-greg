@@ -5,8 +5,11 @@ class AFMClient: LLMClient {
     func stream(
         systemPrompt: String,
         userPrompt: String,
+        imageContext: ImageContext?,
         onChunk: @escaping @MainActor (StreamChunk) -> Void
     ) async throws {
+        // Note: AFM does not support image context.
+        // The caller (PanelState) blocks this case with an error before reaching here.
         let session = LanguageModelSession(instructions: systemPrompt)
         let stream = session.streamResponse(to: userPrompt)
 

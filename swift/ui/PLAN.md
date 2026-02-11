@@ -257,7 +257,7 @@ The cask installs `Greg.app` into `/Applications`.
 - [x] Context banner in the UI (collapsible, char count)
 - [x] Inject context into LLM prompt
 
-### Phase 4 — Polish & Streaming
+### Phase 4 — Polish & Streaming ✅
 - [x] Streaming responses (URLSession AsyncBytes, SSE parsing per provider)
 - [x] Reasoning vs response in different colors (reasoning = dimmed 35% opacity, response = primary)
 - [x] Reasoning block: rolling 4-line window (stream in, drop oldest lines when exceeding 4)
@@ -269,12 +269,12 @@ The cask installs `Greg.app` into `/Applications`.
 - [x] Slash commands UX: tooltip appears above input when typing `/`, shows available commands with descriptions
 - [x] Error states (red icon + message for no config, API errors, network failures)
 
-### Phase 5 — Image context (multimodal)
-- [ ] Read image types from NSPasteboard (.png, .tiff) on `/c` or clipboard offer
-- [ ] Convert to base64 PNG
-- [ ] Show image thumbnail in context banner
-- [ ] Anthropic: send as image content block (base64, media_type)
-- [ ] OpenAI: send as image_url content part (base64 data URI)
-- [ ] Gemini: send as inlineData part (base64, mimeType)
-- [ ] AFM: show unsupported message (no vision support)
-- [ ] Update LLMClient protocol to accept optional image data
+### Phase 5 — Image context (multimodal) ✅
+- [x] Read image types from NSPasteboard (.png, .tiff) on `/c` or clipboard offer
+- [x] Convert to base64 PNG
+- [x] Show image thumbnail in context banner
+- [x] Anthropic: send as image content block (base64, media_type)
+- [x] OpenAI: send as image_url content part (base64 data URI)
+- [x] Gemini: send as inlineData part (base64, mimeType)
+- [x] AFM: show unsupported message (no vision support)
+- [x] Update LLMClient protocol to accept optional image data

@@ -10,7 +10,9 @@ class PanelState: ObservableObject {
     @Published var errorMessage: String? = nil
     @Published var showCount: Int = 0
     @Published var context: String? = nil
+    @Published var imageContext: ImageContext? = nil
     @Published var clipboardText: String? = nil
+    @Published var clipboardHasImage: Bool = false
     @Published var activeCommands: [String] = []  // e.g. ["/c"]
 
     private var config: GregConfig?
@@ -54,14 +56,22 @@ class PanelState: ObservableObject {
         isReasoning = false
         errorMessage = nil
         context = nil
+        imageContext = nil
         clipboardText = nil
+        clipboardHasImage = false
         activeCommands = []
     }
 
     /// Use clipboard text as context.
     func useClipboard() {
-        context = clipboardText
-        clipboardText = nil
+        if let text = clipboardText {
+            context = text
+            clipboardText = nil
+        }
+        if clipboardHasImage {
+            imageContext = ClipboardReader.image()
+            clipboardHasImage = false
+        }
     }
 
     /// Called when input changes. Detects a completed slash command (command + space)
@@ -115,6 +125,15 @@ class PanelState: ObservableObject {
             if let clip = ClipboardReader.text() {
                 context = clip
             }
+            if imageContext == nil, let img = ClipboardReader.image() {
+                imageContext = img
+            }
+        }
+
+        // Check if AFM with image context (unsupported)
+        if imageContext != nil && config?.provider == "afm" {
+            errorMessage = "Image context is not supported with Apple Foundation Models. Use Anthropic, OpenAI, or Gemini instead."
+            return
         }
 
         // Build the user prompt, injecting context if present
@@ -149,7 +168,8 @@ class PanelState: ObservableObject {
             do {
                 try await client.stream(
                     systemPrompt: systemPrompt,
-                    userPrompt: userPrompt
+                    userPrompt: userPrompt,
+                    imageContext: self.imageContext
                 ) { [weak self] chunk in
                     guard let self = self else { return }
                     switch chunk {

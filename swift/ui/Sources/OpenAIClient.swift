@@ -12,6 +12,7 @@ class OpenAIClient: LLMClient {
     func stream(
         systemPrompt: String,
         userPrompt: String,
+        imageContext: ImageContext?,
         onChunk: @escaping @MainActor (StreamChunk) -> Void
     ) async throws {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
@@ -20,13 +21,33 @@ class OpenAIClient: LLMClient {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        // Build user message content — text or multimodal (image_url + text)
+        var userContent: Any
+        if let image = imageContext {
+            // OpenAI multimodal: array of content parts
+            userContent = [
+                [
+                    "type": "image_url",
+                    "image_url": [
+                        "url": "data:\(image.mimeType);base64,\(image.base64)"
+                    ]
+                ] as [String: Any],
+                [
+                    "type": "text",
+                    "text": userPrompt
+                ] as [String: Any]
+            ]
+        } else {
+            userContent = userPrompt
+        }
+
         let body: [String: Any] = [
             "model": model,
             "max_tokens": 16384,
             "stream": true,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": userPrompt]
+                ["role": "user", "content": userContent]
             ]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

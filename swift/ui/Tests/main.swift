@@ -442,6 +442,87 @@ do {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ImageContext struct
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group("ImageContext")
+
+do {
+    let img = ImageContext(base64: "iVBORw0KGgo=", mimeType: "image/png")
+    assertEqual(img.base64, "iVBORw0KGgo=", "base64 stored correctly")
+    assertEqual(img.mimeType, "image/png", "mimeType stored correctly")
+}
+
+do {
+    let img = ImageContext(base64: "abc123", mimeType: "image/jpeg")
+    assertEqual(img.mimeType, "image/jpeg", "supports jpeg mimeType")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// processInput — /c with image context (command activation is same regardless)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group("processInput — /c for image context")
+
+do {
+    // /c command activates the same way whether clipboard has text or image
+    let (input, active) = CommandProcessor.processInput(
+        "/c what is in this image?", knownCommands: ["/c"], alreadyActive: []
+    )
+    assertEqual(input, "what is in this image?", "/c with image question -> stripped")
+    assertEqual(active, ["/c"], "/c activates for image context too")
+}
+
+do {
+    // Just /c with space (image-only context, no text prompt yet)
+    let (input, active) = CommandProcessor.processInput(
+        "/c ", knownCommands: ["/c"], alreadyActive: []
+    )
+    assertEqual(input, "", "/c space only -> empty input")
+    assertEqual(active, ["/c"], "/c activated for standalone use")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// buildHistoryEntry — with /c (covers text + image scenarios)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group("buildHistoryEntry — with /c")
+
+do {
+    let entry = CommandProcessor.buildHistoryEntry(
+        rawInput: "describe this image",
+        activeCommands: ["/c"]
+    )
+    assertEqual(entry, "/c describe this image", "image question in history")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// shouldShowTooltip — /c tooltip still works with image context
+// ═══════════════════════════════════════════════════════════════════════════════
+
+group("shouldShowTooltip — image context scenarios")
+
+do {
+    // Tooltip should show when typing / even if clipboard has image
+    let show = CommandProcessor.shouldShowTooltip(
+        input: "/",
+        knownCommands: ["/c"],
+        activeCommands: []
+    )
+    assert(show, "tooltip shows for / (image clipboard)")
+}
+
+do {
+    // Once /c is active, tooltip should not show it again
+    let show = CommandProcessor.shouldShowTooltip(
+        input: "/",
+        knownCommands: ["/c"],
+        activeCommands: ["/c"]
+    )
+    assert(!show, "no tooltip when /c already active")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Summary
 // ═══════════════════════════════════════════════════════════════════════════════
 

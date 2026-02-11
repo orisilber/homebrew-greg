@@ -59,6 +59,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Offer clipboard content as context if available
         panelState.clipboardText = ClipboardReader.text()
+        panelState.clipboardHasImage = ClipboardReader.hasImage()
 
         panel.centerOnScreen()
         panel.show()

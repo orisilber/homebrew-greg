@@ -34,6 +34,17 @@ struct ContentView: View {
         return slashCommands.filter { matching.contains($0.command) }
     }
 
+    /// Whether there's active context (text or image) to display.
+    private var hasActiveContext: Bool {
+        (state.context != nil && !state.context!.isEmpty) || state.imageContext != nil
+    }
+
+    /// Whether there's a clipboard offer (text or image) to show.
+    private var hasClipboardOffer: Bool {
+        guard !hasActiveContext else { return false }
+        return (state.clipboardText != nil && !state.clipboardText!.isEmpty) || state.clipboardHasImage
+    }
+
     /// Resolve active command strings to SlashCommand objects for display.
     private var activeCommandObjects: [SlashCommand] {
         state.activeCommands.compactMap { cmd in
@@ -43,8 +54,8 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Context banner (active context)
-            if let ctx = state.context, !ctx.isEmpty {
+            // Context banner (active context — text and/or image)
+            if hasActiveContext {
                 VStack(alignment: .leading, spacing: 4) {
                     Button(action: { isContextExpanded.toggle() }) {
                         HStack(spacing: 4) {
@@ -53,23 +64,45 @@ struct ContentView: View {
                             Text("Context")
                                 .font(.system(size: 12, weight: .medium))
                             Spacer()
-                            Text("\(ctx.count) chars")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
+                            if let ctx = state.context, !ctx.isEmpty {
+                                Text("\(ctx.count) chars")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                            if state.imageContext != nil {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                         .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
 
                     if isContextExpanded {
-                        Text(ctx)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.secondary)
-                            .lineLimit(6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
-                            .background(Color.primary.opacity(0.05))
-                            .cornerRadius(6)
+                        // Image thumbnail
+                        if let img = state.imageContext,
+                           let data = Data(base64Encoded: img.base64),
+                           let nsImage = NSImage(data: data) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 100)
+                                .cornerRadius(6)
+                                .padding(4)
+                        }
+
+                        // Text context
+                        if let ctx = state.context, !ctx.isEmpty {
+                            Text(ctx)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.secondary)
+                                .lineLimit(6)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                                .background(Color.primary.opacity(0.05))
+                                .cornerRadius(6)
+                        }
                     }
                 }
                 .padding(.horizontal, 12)
@@ -77,16 +110,22 @@ struct ContentView: View {
                 .padding(.bottom, 4)
 
                 Divider()
-            } else if let clip = state.clipboardText, !clip.isEmpty {
-                // Offer clipboard as context
+            } else if hasClipboardOffer {
+                // Offer clipboard as context (text and/or image)
                 HStack(spacing: 6) {
-                    Image(systemName: "doc.on.clipboard")
+                    Image(systemName: state.clipboardHasImage ? "photo.on.rectangle" : "doc.on.clipboard")
                         .foregroundColor(.secondary)
                         .font(.system(size: 11))
-                    Text(clip.prefix(60) + (clip.count > 60 ? "..." : ""))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    if let clip = state.clipboardText, !clip.isEmpty {
+                        Text(clip.prefix(60) + (clip.count > 60 ? "..." : ""))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    } else if state.clipboardHasImage {
+                        Text("Image on clipboard")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                     Button("Use as context /c") {
                         state.useClipboard()

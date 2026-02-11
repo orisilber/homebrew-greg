@@ -95,7 +95,11 @@ struct CommandProcessor {
         guard let lastSlash = input.range(of: "/", options: .backwards) else { return false }
         let partial = String(input[lastSlash.lowerBound...])
         if partial.contains(" ") { return false }
-        return partial == "/" || knownCommands.contains { cmd in
+        // For bare "/", show tooltip only if there are available (non-active) commands
+        if partial == "/" {
+            return knownCommands.contains { !activeCommands.contains($0) }
+        }
+        return knownCommands.contains { cmd in
             cmd.hasPrefix(partial) && !activeCommands.contains(cmd)
         }
     }

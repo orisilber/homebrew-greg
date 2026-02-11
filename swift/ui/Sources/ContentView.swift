@@ -1,10 +1,45 @@
 import SwiftUI
 
+struct SlashCommand {
+    let command: String
+    let name: String
+    let description: String
+}
+
+let slashCommands: [SlashCommand] = [
+    SlashCommand(command: "/c", name: "clipboard", description: "Attach clipboard as context"),
+]
+
 struct ContentView: View {
     @ObservedObject var state: PanelState
     @FocusState private var isInputFocused: Bool
 
     @State private var isContextExpanded: Bool = true
+
+    /// Show the tooltip when the user is typing a partial slash command.
+    private var showSlashCommands: Bool {
+        CommandProcessor.shouldShowTooltip(
+            input: state.input,
+            knownCommands: slashCommands.map { $0.command },
+            activeCommands: state.activeCommands
+        )
+    }
+
+    private var filteredCommands: [SlashCommand] {
+        let matching = CommandProcessor.filterCommands(
+            input: state.input,
+            knownCommands: slashCommands.map { $0.command },
+            activeCommands: state.activeCommands
+        )
+        return slashCommands.filter { matching.contains($0.command) }
+    }
+
+    /// Resolve active command strings to SlashCommand objects for display.
+    private var activeCommandObjects: [SlashCommand] {
+        state.activeCommands.compactMap { cmd in
+            slashCommands.first { $0.command == cmd }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -53,7 +88,7 @@ struct ContentView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                     Spacer()
-                    Button("Use as context") {
+                    Button("Use as context /c") {
                         state.useClipboard()
                     }
                     .font(.system(size: 11))
@@ -69,26 +104,68 @@ struct ContentView: View {
             // Response area
             ScrollViewReader { proxy in
                 ScrollView {
-                    if state.response.isEmpty && !state.isLoading {
+                    // Error state
+                    if let error = state.errorMessage {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                                .font(.system(size: 14))
+                            Text(error)
+                                .font(.system(size: 13))
+                                .foregroundColor(.red.opacity(0.9))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding()
+                    } else if state.response.isEmpty && state.reasoning.isEmpty && !state.isLoading {
                         Text("Ask Greg anything...")
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                     } else {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if state.isLoading && state.response.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Reasoning block (dimmed, rolling 4 lines)
+                            if !state.reasoning.isEmpty {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 4) {
+                                        if state.isReasoning {
+                                            ProgressView()
+                                                .controlSize(.mini)
+                                        }
+                                        Text("Thinking...")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundColor(.orange.opacity(0.8))
+                                    }
+
+                                    Text(state.reasoning)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(.primary.opacity(0.35))
+                                        .lineLimit(4)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.primary.opacity(0.03))
+                                .cornerRadius(6)
+                                .padding(.horizontal, 8)
+                                .padding(.top, 8)
+                            }
+
+                            // Loading spinner (before any content arrives)
+                            if state.isLoading && state.response.isEmpty && state.reasoning.isEmpty {
                                 HStack(spacing: 6) {
                                     ProgressView()
                                         .controlSize(.small)
-                                    Text("Thinking...")
+                                    Text("Connecting...")
                                         .foregroundColor(.secondary)
                                 }
                                 .padding()
                             }
 
+                            // Response text (primary color)
                             if !state.response.isEmpty {
                                 Text(state.response)
                                     .font(.system(.body, design: .monospaced))
+                                    .foregroundColor(.primary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding()
                                     .textSelection(.enabled)
@@ -100,13 +177,53 @@ struct ContentView: View {
                 .onChange(of: state.response) {
                     proxy.scrollTo("response", anchor: .bottom)
                 }
+                .onChange(of: state.reasoning) {
+                    if state.response.isEmpty {
+                        proxy.scrollTo("response", anchor: .bottom)
+                    }
+                }
             }
             .frame(maxHeight: .infinity)
 
             Divider()
 
+            // Slash command tooltip
+            if showSlashCommands {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(filteredCommands, id: \.command) { cmd in
+                        HStack(spacing: 6) {
+                            Text(cmd.command)
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.accentColor)
+                            Text(cmd.name)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.primary.opacity(0.7))
+                            Text("— \(cmd.description)")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.05))
+            }
+
             // Input area
-            HStack {
+            HStack(spacing: 6) {
+                // Colored slash command chips
+                ForEach(activeCommandObjects, id: \.command) { cmd in
+                    Text(cmd.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor)
+                        .cornerRadius(4)
+                }
+
                 TextField("Ask Greg...", text: $state.input)
                     .textFieldStyle(.plain)
                     .font(.system(size: 16))
@@ -114,6 +231,14 @@ struct ContentView: View {
                     .disabled(state.isLoading)
                     .onSubmit {
                         state.submit()
+                    }
+                    .onKeyPress(.upArrow) {
+                        state.historyBack()
+                        return .handled
+                    }
+                    .onKeyPress(.downArrow) {
+                        state.historyForward()
+                        return .handled
                     }
 
                 if state.isLoading {
@@ -135,6 +260,9 @@ struct ContentView: View {
                     isInputFocused = true
                 }
             }
+        }
+        .onChange(of: state.input) {
+            state.processInputForCommands(slashCommands.map { $0.command })
         }
     }
 }

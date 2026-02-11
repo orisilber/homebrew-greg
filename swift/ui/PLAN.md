@@ -258,16 +258,16 @@ The cask installs `Greg.app` into `/Applications`.
 - [x] Inject context into LLM prompt
 
 ### Phase 4 — Polish & Streaming
-- [ ] Streaming responses (URLSession AsyncBytes, SSE parsing per provider)
-- [ ] Reasoning vs response in different colors (e.g. reasoning = dimmed/gray, response = primary)
-- [ ] Reasoning block: rolling 4-line window (stream in, drop oldest lines when exceeding 4)
-- [ ] Menu bar icon with quit/settings
-- [ ] Animate panel in/out
-- [ ] Vibrancy/blur background
-- [ ] Cmd+C copies full response when no text is selected (don't hijack partial selections)
-- [ ] History (up arrow for previous prompts)
-- [ ] Slash commands UX: highlight `/command` prefix in accent color while typing, show autocomplete tooltip with available commands and descriptions (e.g. `/c` — attach clipboard as context)
-- [ ] Error states (no API key, network failure)
+- [x] Streaming responses (URLSession AsyncBytes, SSE parsing per provider)
+- [x] Reasoning vs response in different colors (reasoning = dimmed 35% opacity, response = primary)
+- [x] Reasoning block: rolling 4-line window (stream in, drop oldest lines when exceeding 4)
+- [x] Menu bar icon with quit (done in Phase 1)
+- [x] Animate panel in/out (fade + scale, 0.15s ease-out in, 0.1s ease-in out)
+- [x] Vibrancy/blur background (done in Phase 1, NSVisualEffectView .hudWindow)
+- [x] ~~Cmd+C copies full response~~ (removed — not needed)
+- [x] History (up/down arrow to navigate previous prompts within session)
+- [x] Slash commands UX: tooltip appears above input when typing `/`, shows available commands with descriptions
+- [x] Error states (red icon + message for no config, API errors, network failures)
 
 ### Phase 5 — Image context (multimodal)
 - [ ] Read image types from NSPasteboard (.png, .tiff) on `/c` or clipboard offer

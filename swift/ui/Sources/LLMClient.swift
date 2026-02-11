@@ -1,7 +1,20 @@
 import Foundation
 
+/// A chunk of streamed LLM output.
+enum StreamChunk {
+    case reasoning(String)   // thinking/reasoning token
+    case content(String)     // response content token
+    case done                // stream finished
+    case error(String)       // error occurred
+}
+
 protocol LLMClient {
-    func generate(systemPrompt: String, userPrompt: String) async throws -> String
+    /// Stream a response, calling the handler for each chunk on the main thread.
+    func stream(
+        systemPrompt: String,
+        userPrompt: String,
+        onChunk: @escaping @MainActor (StreamChunk) -> Void
+    ) async throws
 }
 
 enum LLMError: LocalizedError {
@@ -36,4 +49,19 @@ func createLLMClient(config: GregConfig) throws -> LLMClient {
     default:
         throw LLMError.apiError("Unknown provider: \(config.provider)")
     }
+}
+
+// MARK: - SSE Parsing Helpers
+
+/// Parse lines from an SSE stream. Handles "data: {json}" format.
+func parseSSELine(_ line: String) -> [String: Any]? {
+    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard trimmed.hasPrefix("data: ") else { return nil }
+    let jsonStr = String(trimmed.dropFirst(6))
+    guard jsonStr != "[DONE]" else { return nil }
+    guard let data = jsonStr.data(using: .utf8),
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return nil
+    }
+    return json
 }

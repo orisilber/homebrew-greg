@@ -9,7 +9,11 @@ class OpenAIClient: LLMClient {
         self.model = model
     }
 
-    func generate(systemPrompt: String, userPrompt: String) async throws -> String {
+    func stream(
+        systemPrompt: String,
+        userPrompt: String,
+        onChunk: @escaping @MainActor (StreamChunk) -> Void
+    ) async throws {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -18,7 +22,8 @@ class OpenAIClient: LLMClient {
 
         let body: [String: Any] = [
             "model": model,
-            "max_tokens": 4096,
+            "max_tokens": 16384,
+            "stream": true,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userPrompt]
@@ -26,23 +31,46 @@ class OpenAIClient: LLMClient {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw LLMError.unknown
+        if let httpResponse = response as? HTTPURLResponse,
+           httpResponse.statusCode != 200 {
+            var errorBody = ""
+            for try await line in bytes.lines {
+                errorBody += line
+            }
+            if let data = errorBody.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = json["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                throw LLMError.apiError(message)
+            }
+            throw LLMError.apiError("HTTP \(httpResponse.statusCode)")
         }
 
-        if let error = json["error"] as? [String: Any],
-           let message = error["message"] as? String {
-            throw LLMError.apiError(message)
+        for try await line in bytes.lines {
+            guard let json = parseSSELine(line) else { continue }
+
+            guard let choices = json["choices"] as? [[String: Any]],
+                  let delta = choices.first?["delta"] as? [String: Any] else { continue }
+
+            // Reasoning tokens (o1/o3 models)
+            if let reasoning = delta["reasoning_content"] as? String, !reasoning.isEmpty {
+                await onChunk(.reasoning(reasoning))
+            }
+
+            // Content tokens
+            if let content = delta["content"] as? String, !content.isEmpty {
+                await onChunk(.content(content))
+            }
+
+            // Check for finish
+            if let finishReason = choices.first?["finish_reason"] as? String,
+               !finishReason.isEmpty {
+                await onChunk(.done)
+            }
         }
 
-        guard let choices = json["choices"] as? [[String: Any]],
-              let message = choices.first?["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw LLMError.unknown
-        }
-
-        return content
+        await onChunk(.done)
     }
 }

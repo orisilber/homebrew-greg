@@ -61,7 +61,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panelState.clipboardText = ClipboardReader.text()
 
         panel.centerOnScreen()
-        panel.makeKeyAndOrderFront(nil)
+        panel.show()
         panelState.didShow()
 
         // Dismiss on click outside

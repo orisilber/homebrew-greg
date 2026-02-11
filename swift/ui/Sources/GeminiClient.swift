@@ -9,8 +9,12 @@ class GeminiClient: LLMClient {
         self.model = model
     }
 
-    func generate(systemPrompt: String, userPrompt: String) async throws -> String {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")!
+    func stream(
+        systemPrompt: String,
+        userPrompt: String,
+        onChunk: @escaping @MainActor (StreamChunk) -> Void
+    ) async throws {
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):streamGenerateContent?alt=sse")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -21,28 +25,49 @@ class GeminiClient: LLMClient {
             "contents": [
                 ["role": "user", "parts": [["text": userPrompt]]]
             ],
-            "generationConfig": ["maxOutputTokens": 4096]
+            "generationConfig": [
+                "maxOutputTokens": 16384,
+                "thinkingConfig": ["thinkingBudget": 8000]
+            ]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw LLMError.unknown
+        if let httpResponse = response as? HTTPURLResponse,
+           httpResponse.statusCode != 200 {
+            var errorBody = ""
+            for try await line in bytes.lines {
+                errorBody += line
+            }
+            if let data = errorBody.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let error = json["error"] as? [String: Any],
+               let message = error["message"] as? String {
+                throw LLMError.apiError(message)
+            }
+            throw LLMError.apiError("HTTP \(httpResponse.statusCode)")
         }
 
-        if let error = json["error"] as? [String: Any],
-           let message = error["message"] as? String {
-            throw LLMError.apiError(message)
+        for try await line in bytes.lines {
+            guard let json = parseSSELine(line) else { continue }
+
+            guard let candidates = json["candidates"] as? [[String: Any]],
+                  let content = candidates.first?["content"] as? [String: Any],
+                  let parts = content["parts"] as? [[String: Any]] else { continue }
+
+            for part in parts {
+                guard let text = part["text"] as? String, !text.isEmpty else { continue }
+
+                // Gemini marks thinking parts with "thought": true
+                if let thought = part["thought"] as? Bool, thought {
+                    await onChunk(.reasoning(text))
+                } else {
+                    await onChunk(.content(text))
+                }
+            }
         }
 
-        guard let candidates = json["candidates"] as? [[String: Any]],
-              let content = candidates.first?["content"] as? [String: Any],
-              let parts = content["parts"] as? [[String: Any]],
-              let text = parts.first?["text"] as? String else {
-            throw LLMError.unknown
-        }
-
-        return text
+        await onChunk(.done)
     }
 }

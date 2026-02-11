@@ -60,9 +60,41 @@ class FloatingPanel: NSPanel {
         }
     }
 
+
+    func show() {
+        alphaValue = 0
+        setFrame(scaleFrame(frame, by: 0.96), display: false)
+        makeKeyAndOrderFront(nil)
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            animator().alphaValue = 1
+            animator().setFrame(scaleFrame(frame, by: 1 / 0.96), display: true)
+        }
+    }
+
     func hide() {
-        orderOut(nil)
-        onHide?()
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.1
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            self?.orderOut(nil)
+            self?.alphaValue = 1
+            self?.onHide?()
+        })
+    }
+
+    private func scaleFrame(_ rect: NSRect, by scale: CGFloat) -> NSRect {
+        let dw = rect.width * (1 - scale)
+        let dh = rect.height * (1 - scale)
+        return NSRect(
+            x: rect.origin.x + dw / 2,
+            y: rect.origin.y + dh / 2,
+            width: rect.width * scale,
+            height: rect.height * scale
+        )
     }
 
     func centerOnScreen() {

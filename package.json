@@ -1,6 +1,6 @@
 {
   "name": "greg-cli",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Natural language to shell commands — powered by Apple Foundation Models",
   "type": "module",
   "bin": {

@@ -88,6 +88,17 @@ class PanelState: ObservableObject {
         }
     }
 
+    /// Remove an active slash command.
+    func removeCommand(_ cmd: String) {
+        activeCommands.removeAll { $0 == cmd }
+    }
+
+    /// Remove the last active slash command (backspace on empty input).
+    func removeLastCommand() {
+        guard !activeCommands.isEmpty else { return }
+        activeCommands.removeLast()
+    }
+
     /// Navigate history backwards (up arrow).
     func historyBack() {
         guard !history.isEmpty else { return }
@@ -96,7 +107,7 @@ class PanelState: ObservableObject {
         } else if historyIndex > 0 {
             historyIndex -= 1
         }
-        input = history[historyIndex]
+        restoreHistoryEntry(history[historyIndex])
     }
 
     /// Navigate history forwards (down arrow).
@@ -104,11 +115,26 @@ class PanelState: ObservableObject {
         guard historyIndex >= 0 else { return }
         if historyIndex < history.count - 1 {
             historyIndex += 1
-            input = history[historyIndex]
+            restoreHistoryEntry(history[historyIndex])
         } else {
             historyIndex = -1
             input = ""
+            activeCommands = []
         }
+    }
+
+    /// Restore a history entry, extracting any slash commands into chips.
+    private func restoreHistoryEntry(_ entry: String, knownCommands: [String] = ["/c"]) {
+        var text = entry
+        var commands: [String] = []
+        for cmd in knownCommands {
+            if CommandProcessor.containsCommand(text, cmd) {
+                commands.append(cmd)
+                text = CommandProcessor.stripCommand(text, cmd)
+            }
+        }
+        activeCommands = commands
+        input = text
     }
 
     func submit() {

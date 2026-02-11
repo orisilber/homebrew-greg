@@ -252,15 +252,22 @@ struct ContentView: View {
 
             // Input area
             HStack(spacing: 6) {
-                // Colored slash command chips
+                // Colored slash command chips (click to remove)
                 ForEach(activeCommandObjects, id: \.command) { cmd in
-                    Text(cmd.name)
-                        .font(.system(size: 12, weight: .semibold))
+                    Button(action: { state.removeCommand(cmd.command) }) {
+                        HStack(spacing: 3) {
+                            Text(cmd.name)
+                                .font(.system(size: 12, weight: .semibold))
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8, weight: .bold))
+                        }
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Color.accentColor)
                         .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 TextField("Ask Greg...", text: $state.input)
@@ -278,6 +285,13 @@ struct ContentView: View {
                     .onKeyPress(.downArrow) {
                         state.historyForward()
                         return .handled
+                    }
+                    .onKeyPress(.delete) {
+                        if state.input.isEmpty && !state.activeCommands.isEmpty {
+                            state.removeLastCommand()
+                            return .handled
+                        }
+                        return .ignored
                     }
 
                 if state.isLoading {

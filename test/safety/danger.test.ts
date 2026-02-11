@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { isDangerous } from "../src";
+import { isDangerous } from "../../src";
 
 describe("isDangerous", () => {
   // ── Safe (read-only) commands ───────────────────────────────────────────

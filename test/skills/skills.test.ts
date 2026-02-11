@@ -1,14 +1,10 @@
-import { describe, it, beforeAll, afterAll, expect } from "bun:test";
-import { writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
+import { describe, it, expect } from "bun:test";
 import {
   parseSkillFile,
   matchSkills,
   buildSkillsPromptSection,
-  listSkills,
-} from "../src";
-import type { Skill } from "../src";
+} from "../../src";
+import type { Skill } from "../../src";
 
 // ── parseSkillFile ──────────────────────────────────────────────────────────
 

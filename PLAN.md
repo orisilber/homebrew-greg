@@ -151,7 +151,7 @@ Move `src/afm-bridge.swift` → `swift/afm-bridge.swift`. Update the path refere
 - Move danger → `src/safety/danger.ts`
 - Thin `bin/greg.ts` to just call the router
 
-### PR 4 — Restructure tests + add `swift/ui/`
+### PR 4 — Restructure tests + add `swift/ui/` ✅
 
 - Move tests to mirror `src/` structure
 - Create `swift/ui/` directory

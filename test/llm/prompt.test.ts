@@ -1,7 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { buildSystemPrompt, getTerminalContext } from "../src";
-
-// ── buildSystemPrompt ───────────────────────────────────────────────────────
+import { buildSystemPrompt, getTerminalContext } from "../../src";
 
 describe("buildSystemPrompt", () => {
   const ctx = { cwd: "/tmp/test", osName: "macOS", archName: "arm64", history: "", dirListing: "" };
@@ -37,8 +35,6 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Never suggest opening a GUI");
   });
 });
-
-// ── getTerminalContext ───────────────────────────────────────────────────────
 
 describe("getTerminalContext", () => {
   it("returns cwd matching process.cwd()", () => {

@@ -7,7 +7,7 @@
     "greg": "./dist/greg.mjs"
   },
   "scripts": {
-    "build": "mkdir -p dist && bun build bin/greg.ts --outfile dist/_bundle.mjs --target node && printf '#!/usr/bin/env node\\n' | cat - dist/_bundle.mjs > dist/greg.mjs && rm dist/_bundle.mjs && chmod +x dist/greg.mjs && cp src/afm-bridge.swift dist/",
+    "build": "mkdir -p dist && bun build bin/greg.ts --outfile dist/_bundle.mjs --target node && printf '#!/usr/bin/env node\\n' | cat - dist/_bundle.mjs > dist/greg.mjs && rm dist/_bundle.mjs && chmod +x dist/greg.mjs && cp swift/afm-bridge.swift dist/",
     "test": "bun test",
     "prepublishOnly": "bun run build"
   },

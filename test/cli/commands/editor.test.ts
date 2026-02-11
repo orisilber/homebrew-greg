@@ -4,7 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { spawnSync } from "child_process";
 
-const PROJECT_ROOT = join(import.meta.dir, "..");
+const PROJECT_ROOT = join(import.meta.dir, "../../..");
 
 describe("editor mode", () => {
   it("exits cleanly when editor produces empty file", () => {

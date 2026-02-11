@@ -8,7 +8,7 @@ import {
   checkAFMAvailability,
   AFM_BINARY,
   AFM_SWIFT_SRC,
-} from "../src";
+} from "../../../src";
 
 describe("AFM bridge", () => {
   it("detects macOS for AFM support", () => {

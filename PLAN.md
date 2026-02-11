@@ -125,7 +125,7 @@ Move out of `shared.ts`:
 
 Delete `shared.ts`. Update all imports.
 
-### PR 2 — Split LLM layer
+### PR 2 — Split LLM layer ✅
 
 Break `llm.ts` into:
 - `src/llm/context.ts` — `getTerminalContext`

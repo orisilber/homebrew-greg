@@ -7,6 +7,10 @@ import {
 } from "fs";
 import { join, basename } from "path";
 import { SKILLS_DIR } from "./config/paths";
+import type { GregConfig } from "./types";
+import { stripCodeFences } from "./utils/text";
+import { C } from "./utils/colors";
+import { callLLM } from "./llm/dispatcher";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -129,6 +133,64 @@ export function buildSkillsPromptSection(skills: Skill[]): string {
   );
 
   return `\nACTIVE SKILLS:\n${sections.join("\n\n")}`;
+}
+
+// ── AI matching ─────────────────────────────────────────────────────────
+
+function logSkills(skills: Skill[]): void {
+  for (const s of skills) {
+    if (s.description) {
+      console.error(C.green(`  Using skill: ${s.name}`));
+    }
+  }
+}
+
+export async function matchSkillsWithAI(
+  config: GregConfig, skills: Skill[], userPrompt: string
+): Promise<Skill[]> {
+  const globalSkills = skills.filter((s) => !s.description);
+  const conditionalSkills = skills.filter((s) => s.description);
+
+  if (conditionalSkills.length === 0) {
+    logSkills(globalSkills);
+    return globalSkills;
+  }
+
+  // AFM: use fast keyword matching (no extra API call)
+  if (config.provider === "afm") {
+    const matched = matchSkills(skills, userPrompt);
+    logSkills(matched);
+    return matched;
+  }
+
+  console.error(C.dim("  Matching skills..."));
+
+  const skillList = conditionalSkills
+    .map((s) => `- "${s.name}": ${s.description}`)
+    .join("\n");
+
+  const systemPrompt =
+    `You select which skills are relevant to a user's CLI request. ` +
+    `Return ONLY a JSON array of skill names that match. Return [] if none are relevant. ` +
+    `No explanation, no markdown, no code fences.`;
+
+  const matchPrompt = `Skills:\n${skillList}\n\nRequest: ${userPrompt}`;
+
+  try {
+    const raw = stripCodeFences(
+      await callLLM(config, systemPrompt, matchPrompt, 100)
+    );
+    const names: string[] = JSON.parse(raw);
+    const matched = conditionalSkills.filter((s) => names.includes(s.name));
+    const result = [...globalSkills, ...matched];
+    logSkills(result);
+    return result;
+  } catch {
+    // Fall back to keyword matching on parse/network failure
+    const result = matchSkills(skills, userPrompt);
+    logSkills(result);
+    return result;
+  }
 }
 
 // ── Management ──────────────────────────────────────────────────────────────

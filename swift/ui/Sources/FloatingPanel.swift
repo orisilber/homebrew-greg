@@ -34,6 +34,8 @@ class FloatingPanel: NSPanel {
         // SwiftUI content
         let hostingView = NSHostingView(rootView: ContentView(state: state))
         hostingView.translatesAutoresizingMaskIntoConstraints = false
+        // Prevent hosting view from resizing the window on SwiftUI layout changes
+        hostingView.sizingOptions = []
 
         visualEffect.addSubview(hostingView)
         NSLayoutConstraint.activate([

@@ -16,6 +16,7 @@ struct ContentView: View {
     @FocusState private var isInputFocused: Bool
 
     @State private var isContextExpanded: Bool = true
+    @State private var keyMonitor: Any?
 
     /// Show the tooltip when the user is typing a partial slash command.
     private var showSlashCommands: Bool {
@@ -287,13 +288,6 @@ struct ContentView: View {
                         state.historyForward()
                         return .handled
                     }
-                    .onKeyPress(.delete) {
-                        if state.input.isEmpty && !state.activeCommands.isEmpty {
-                            state.removeLastCommand()
-                            return .handled
-                        }
-                        return .ignored
-                    }
 
                 if state.isLoading {
                     ProgressView()
@@ -317,6 +311,25 @@ struct ContentView: View {
         }
         .onChange(of: state.input) {
             state.processInputForCommands(slashCommands.map { $0.command })
+        }
+        .onAppear {
+            let panelState = state
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // keyCode 51 = Backspace
+                if event.keyCode == 51 && panelState.input.isEmpty && !panelState.activeCommands.isEmpty {
+                    DispatchQueue.main.async {
+                        panelState.removeLastCommand()
+                    }
+                    return nil
+                }
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = keyMonitor {
+                NSEvent.removeMonitor(monitor)
+                keyMonitor = nil
+            }
         }
     }
 }

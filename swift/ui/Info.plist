@@ -18,5 +18,7 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Greg needs Screen Recording permission to screenshot the previous app window when you use the /s command.</string>
 </dict>
 </plist>

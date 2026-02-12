@@ -8,6 +8,7 @@ struct SlashCommand {
 
 let slashCommands: [SlashCommand] = [
     SlashCommand(command: "/c", name: "clipboard", description: "Attach clipboard as context"),
+    SlashCommand(command: "/s", name: "screenshot", description: "Screenshot the last app window"),
 ]
 
 struct ContentView: View {

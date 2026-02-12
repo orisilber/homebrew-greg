@@ -55,7 +55,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showPanel() {
+        // Capture the previous app's PID BEFORE we reset/show
+        let previousAppPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+
         panelState.reset()
+        panelState.previousAppPID = previousAppPID
 
         // Offer clipboard content as context if available
         panelState.clipboardText = ClipboardReader.text()

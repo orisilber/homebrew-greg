@@ -13,7 +13,10 @@ class PanelState: ObservableObject {
     @Published var imageContext: ImageContext? = nil
     @Published var clipboardText: String? = nil
     @Published var clipboardHasImage: Bool = false
-    @Published var activeCommands: [String] = []  // e.g. ["/c"]
+    @Published var activeCommands: [String] = []  // e.g. ["/c", "/s"]
+
+    /// PID of the app that was active before Greg appeared.
+    var previousAppPID: pid_t?
 
     private var config: GregConfig?
     private var client: LLMClient?
@@ -60,6 +63,7 @@ class PanelState: ObservableObject {
         clipboardText = nil
         clipboardHasImage = false
         activeCommands = []
+        // Note: previousAppPID is set by AppDelegate before reset, don't clear it here
     }
 
     /// Use clipboard text as context.
@@ -124,7 +128,7 @@ class PanelState: ObservableObject {
     }
 
     /// Restore a history entry, extracting any slash commands into chips.
-    private func restoreHistoryEntry(_ entry: String, knownCommands: [String] = ["/c"]) {
+    private func restoreHistoryEntry(_ entry: String, knownCommands: [String] = ["/c", "/s"]) {
         var text = entry
         var commands: [String] = []
         for cmd in knownCommands {
@@ -156,25 +160,8 @@ class PanelState: ObservableObject {
             }
         }
 
-        // Check if AFM with image context (unsupported)
-        if imageContext != nil && config?.provider == "afm" {
-            errorMessage = "Image context is not supported with Apple Foundation Models. Use Anthropic, OpenAI, or Gemini instead."
-            return
-        }
-
-        // Build the user prompt, injecting context if present
-        var userPrompt = prompt
-        if let context = context, !context.isEmpty {
-            userPrompt = """
-            The user provided the following context:
-
-            ```
-            \(context)
-            ```
-
-            User's question: \(prompt)
-            """
-        }
+        let needsScreenshot = activeCommands.contains("/s")
+        let screenshotPID = previousAppPID
 
         // Save to history: reconstruct with commands so recall shows them
         let historyEntry = CommandProcessor.buildHistoryEntry(
@@ -191,9 +178,53 @@ class PanelState: ObservableObject {
         isReasoning = false
 
         Task { @MainActor in
+            // Capture screenshot if /s is active (async via ScreenCaptureKit)
+            if needsScreenshot {
+                if #available(macOS 14.0, *) {
+                    if let pid = screenshotPID {
+                        if let screenshot = await ScreenshotCapture.capture(appPID: pid) {
+                            self.imageContext = screenshot
+                        } else {
+                            self.errorMessage = "Could not capture screenshot. Grant Screen Recording permission in System Settings > Privacy & Security."
+                            self.isLoading = false
+                            return
+                        }
+                    } else {
+                        self.errorMessage = "No previous window found to screenshot."
+                        self.isLoading = false
+                        return
+                    }
+                } else {
+                    self.errorMessage = "Screenshot requires macOS 14 (Sonoma) or later."
+                    self.isLoading = false
+                    return
+                }
+            }
+
+            // Check if AFM with image context (unsupported)
+            if self.imageContext != nil && self.config?.provider == "afm" {
+                self.errorMessage = "Image context is not supported with Apple Foundation Models. Use Anthropic, OpenAI, or Gemini instead."
+                self.isLoading = false
+                return
+            }
+
+            // Build the user prompt, injecting context if present
+            var userPrompt = prompt
+            if let context = self.context, !context.isEmpty {
+                userPrompt = """
+                The user provided the following context:
+
+                ```
+                \(context)
+                ```
+
+                User's question: \(prompt)
+                """
+            }
+
             do {
                 try await client.stream(
-                    systemPrompt: systemPrompt,
+                    systemPrompt: self.systemPrompt,
                     userPrompt: userPrompt,
                     imageContext: self.imageContext
                 ) { [weak self] chunk in

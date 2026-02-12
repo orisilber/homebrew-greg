@@ -17,6 +17,7 @@ xcrun swiftc \
     -framework SwiftUI \
     -framework Combine \
     -framework FoundationModels \
+    -framework ScreenCaptureKit \
     -Osize
 
 cp "$DIR/Info.plist" "$APP/Contents/"

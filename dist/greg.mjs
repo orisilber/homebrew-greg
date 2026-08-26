@@ -111,7 +111,8 @@ function callAFM(systemPrompt, userPrompt) {
 var DEFAULT_MODELS = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4o-mini",
-  gemini: "gemini-2.5-flash"
+  gemini: "gemini-2.5-flash",
+  openrouter: "anthropic/claude-sonnet-4"
 };
 async function setup() {
   console.error("");
@@ -131,8 +132,10 @@ async function setup() {
 `;
       menu += `  ${C.green("4")} Google Gemini
 `;
+      menu += `  ${C.green("5")} OpenRouter
+`;
       menu += `
-Choose [1/2/3/4]: `;
+Choose [1/2/3/4/5]: `;
     } else {
       menu += `  ${C.green("1")} Anthropic (Claude)
 `;
@@ -140,8 +143,10 @@ Choose [1/2/3/4]: `;
 `;
       menu += `  ${C.green("3")} Google Gemini
 `;
+      menu += `  ${C.green("4")} OpenRouter
+`;
       menu += `
-Choose [1/2/3]: `;
+Choose [1/2/3/4]: `;
     }
     const choice = await ask(menu);
     if (afmSupported) {
@@ -161,6 +166,10 @@ Choose [1/2/3]: `;
         provider = "gemini";
         break;
       }
+      if (choice === "5") {
+        provider = "openrouter";
+        break;
+      }
     } else {
       if (choice === "1") {
         provider = "anthropic";
@@ -172,6 +181,10 @@ Choose [1/2/3]: `;
       }
       if (choice === "3") {
         provider = "gemini";
+        break;
+      }
+      if (choice === "4") {
+        provider = "openrouter";
         break;
       }
     }
@@ -205,7 +218,8 @@ Compiling AFM bridge...`));
     const keyHints = {
       anthropic: "sk-ant-api03-...",
       openai: "sk-proj-...",
-      gemini: "AIza..."
+      gemini: "AIza...",
+      openrouter: "sk-or-v1-..."
     };
     let key;
     while (true) {
@@ -527,6 +541,29 @@ async function callGemini(config, systemPrompt, userPrompt, maxTokens = 1024) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
+// src/llm/providers/openrouter.ts
+async function callOpenRouter(config, systemPrompt, userPrompt, maxTokens = 1024) {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: config.model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    })
+  });
+  const data = await res.json();
+  if (data.error)
+    throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
 // src/llm/dispatcher.ts
 async function callLLM(config, systemPrompt, userPrompt, maxTokens = 1024) {
   switch (config.provider) {
@@ -536,6 +573,8 @@ async function callLLM(config, systemPrompt, userPrompt, maxTokens = 1024) {
       return await callAnthropic(config, systemPrompt, userPrompt, maxTokens);
     case "gemini":
       return await callGemini(config, systemPrompt, userPrompt, maxTokens);
+    case "openrouter":
+      return await callOpenRouter(config, systemPrompt, userPrompt, maxTokens);
     case "openai":
     default:
       return await callOpenAI(config, systemPrompt, userPrompt, maxTokens);

@@ -9,6 +9,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4o-mini",
   gemini: "gemini-2.5-flash",
+  openrouter: "anthropic/claude-sonnet-4",
 };
 
 export async function setup(): Promise<GregConfig> {
@@ -25,12 +26,14 @@ export async function setup(): Promise<GregConfig> {
       menu += `  ${C.green("2")} Anthropic (Claude)\n`;
       menu += `  ${C.green("3")} OpenAI (GPT)\n`;
       menu += `  ${C.green("4")} Google Gemini\n`;
-      menu += `\nChoose [1/2/3/4]: `;
+      menu += `  ${C.green("5")} OpenRouter\n`;
+      menu += `\nChoose [1/2/3/4/5]: `;
     } else {
       menu += `  ${C.green("1")} Anthropic (Claude)\n`;
       menu += `  ${C.green("2")} OpenAI (GPT)\n`;
       menu += `  ${C.green("3")} Google Gemini\n`;
-      menu += `\nChoose [1/2/3]: `;
+      menu += `  ${C.green("4")} OpenRouter\n`;
+      menu += `\nChoose [1/2/3/4]: `;
     }
 
     const choice = await ask(menu);
@@ -40,10 +43,12 @@ export async function setup(): Promise<GregConfig> {
       if (choice === "2") { provider = "anthropic"; break; }
       if (choice === "3") { provider = "openai"; break; }
       if (choice === "4") { provider = "gemini"; break; }
+      if (choice === "5") { provider = "openrouter"; break; }
     } else {
       if (choice === "1") { provider = "anthropic"; break; }
       if (choice === "2") { provider = "openai"; break; }
       if (choice === "3") { provider = "gemini"; break; }
+      if (choice === "4") { provider = "openrouter"; break; }
     }
     console.error(C.red("Invalid choice."));
   }
@@ -79,6 +84,7 @@ export async function setup(): Promise<GregConfig> {
       anthropic: "sk-ant-api03-...",
       openai: "sk-proj-...",
       gemini: "AIza...",
+      openrouter: "sk-or-v1-...",
     };
 
     let key: string;

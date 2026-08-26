@@ -1,4 +1,4 @@
-export type Provider = "afm" | "anthropic" | "openai" | "gemini";
+export type Provider = "afm" | "anthropic" | "openai" | "gemini" | "openrouter";
 
 export type HotkeyModifier = "Command" | "Option" | "Shift" | "Control";
 

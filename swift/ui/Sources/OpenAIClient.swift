@@ -4,10 +4,13 @@ class OpenAIClient: LLMClient {
     private let apiKey: String
     private let model: String
 
-    init(apiKey: String, model: String) {
+    init(apiKey: String, model: String, baseURL: String = "https://api.openai.com/v1/chat/completions") {
         self.apiKey = apiKey
         self.model = model
+        self.baseURL = baseURL
     }
+
+    private let baseURL: String
 
     func stream(
         systemPrompt: String,
@@ -15,7 +18,7 @@ class OpenAIClient: LLMClient {
         imageContext: ImageContext?,
         onChunk: @escaping @MainActor (StreamChunk) -> Void
     ) async throws {
-        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        let url = URL(string: baseURL)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")

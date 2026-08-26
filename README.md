@@ -25,7 +25,7 @@ brew install --cask greg   # UI app
 greg --setup
 ```
 
-Pick a provider: **Apple Intelligence** (on-device, no API key), **Anthropic**, **OpenAI**, or **Google Gemini**. Config is saved to `~/.config/greg/config.json`.
+Pick a provider: **Apple Intelligence** (on-device, no API key), **Anthropic**, **OpenAI**, **Google Gemini**, or **OpenRouter**. Config is saved to `~/.config/greg/config.json`.
 
 ## CLI
 

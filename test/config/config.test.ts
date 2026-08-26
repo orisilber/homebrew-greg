@@ -56,4 +56,12 @@ describe("config", () => {
     expect(loaded).toEqual(testConfig);
     expect(loaded!.provider).toBe("gemini");
   });
+
+  it("supports openrouter provider config", () => {
+    const testConfig = { provider: "openrouter" as const, apiKey: "sk-or-v1-XXX", model: "anthropic/claude-sonnet-4" };
+    saveConfig(testConfig);
+    const loaded = loadConfig();
+    expect(loaded).toEqual(testConfig);
+    expect(loaded!.provider).toBe("openrouter");
+  });
 });

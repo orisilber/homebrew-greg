@@ -46,6 +46,13 @@ func createLLMClient(config: GregConfig) throws -> LLMClient {
     case "gemini":
         guard let key = config.apiKey, !key.isEmpty else { throw LLMError.noApiKey }
         return GeminiClient(apiKey: key, model: config.model ?? "gemini-2.5-flash")
+    case "openrouter":
+        guard let key = config.apiKey, !key.isEmpty else { throw LLMError.noApiKey }
+        return OpenAIClient(
+            apiKey: key,
+            model: config.model ?? "anthropic/claude-sonnet-4",
+            baseURL: "https://openrouter.ai/api/v1/chat/completions"
+        )
     case "afm":
         return AFMClient()
     default:

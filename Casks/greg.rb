@@ -1,6 +1,6 @@
 cask "greg" do
-  version "0.3.1"
-  sha256 "3cef3b09d1c6ed7d6192419361c754695a7bd8a3a43128465814f5a7d73e2773"
+  version "0.4.0"
+  sha256 "0413c5e87df85a4dd802153a532646b76142ede3b81936f1c5290bb212ae2e88"
 
   url "https://github.com/orisilber/homebrew-greg/releases/download/v#{version}/Greg.app.zip"
   name "Greg"

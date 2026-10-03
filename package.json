@@ -1,7 +1,7 @@
 {
   "name": "greg-cli",
-  "version": "0.4.0",
-  "description": "Natural language to shell commands \u2014 powered by Apple Foundation Models",
+  "version": "0.5.0",
+  "description": "Natural language to shell commands — powered by Apple Foundation Models",
   "type": "module",
   "bin": {
     "greg": "./dist/greg.mjs"

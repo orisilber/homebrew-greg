@@ -1,58 +1,36 @@
 import { describe, it, expect } from "bun:test";
 import { join } from "path";
 import { spawnSync } from "child_process";
+import { parseArgs } from "../../src/cli/router";
 
-const PROJECT_ROOT = join(import.meta.dir, "../..");
-
-function runGreg(args: string[], env?: Record<string, string>) {
-  return spawnSync(
-    "bun",
-    [join(PROJECT_ROOT, "bin", "greg.ts"), ...args],
-    {
-      env: { ...process.env, ...env },
-      encoding: "utf-8",
-      timeout: 10_000,
-    }
-  );
+const CLI = join(import.meta.dir, "../../bin/greg.ts");
+function runGreg(args: string[]) {
+  return spawnSync("bun", [CLI, ...args], { env: { ...process.env }, encoding: "utf8", timeout: 3000 });
 }
 
 describe("router", () => {
-  it("--skills list runs without error", () => {
+  it("shows help without configuring or contacting a provider", () => {
+    const result = runGreg(["--help"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("--preview");
+    expect(result.stdout).not.toContain("--skills");
+  });
+  it("rejects removed skills commands", () => {
     const result = runGreg(["--skills", "list"]);
-    // Should exit 0 and show either skills or "No skills found"
-    expect(result.status).toBe(0);
-  });
-
-  it("--skills path prints the skills directory", () => {
-    const result = runGreg(["--skills", "path"]);
-    expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toContain(".config/greg/skills");
-  });
-
-  it("--skills with no subcommand lists skills", () => {
-    const result = runGreg(["--skills"]);
-    expect(result.status).toBe(0);
-  });
-
-  it("--skills with unknown subcommand shows usage", () => {
-    const result = runGreg(["--skills", "unknown"]);
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain("Usage:");
-  });
-
-  it("--skills edit with nonexistent skill shows error", () => {
-    const result = runGreg(["--skills", "edit", "__nonexistent_skill__"]);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("not found");
+    expect(result.stderr).toContain("Unknown option");
   });
-
-  it("joins multiple args into a single prompt", () => {
-    // Running with args will try to call the LLM.
-    // We just verify it doesn't treat them as separate commands.
-    // The error message (no config or API error) proves args were joined into a prompt.
-    const result = runGreg(["list", "all", "files"]);
-    // Should attempt LLM call (not show "nothing to do" or usage)
-    expect(result.stderr).not.toContain("nothing to do");
-    expect(result.stderr).not.toContain("Usage:");
+  it("rejects invalid deadlines before making a request", () => {
+    for (const value of ["0", "-1", "NaN", "1.5", "600001"]) {
+      expect(runGreg(["--timeout", value, "list files"]).status).toBe(1);
+    }
+  });
+  it("rejects conflicting modes", () => {
+    expect(runGreg(["--copy", "--preview", "list files"]).status).toBe(1);
+  });
+  it("preserves flags inside the natural-language request", () => {
+    expect(parseArgs(["--preview", "show", "git", "log", "--oneline"]).promptArgs)
+      .toEqual(["show", "git", "log", "--oneline"]);
+    expect(parseArgs(["--", "--help"]).promptArgs).toEqual(["--help"]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, expect } from "bun:test";
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, unlinkSync, statSync, chmodSync } from "fs";
 import {
   loadConfig,
   saveConfig,
@@ -40,13 +40,14 @@ describe("config", () => {
   it("saves config with restricted permissions (0600)", () => {
     const testConfig = { provider: "afm" as const };
     saveConfig(testConfig);
-    const parsed = JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
-    expect(parsed.provider).toBe("afm");
+    chmodSync(CONFIG_FILE, 0o644);
+    saveConfig(testConfig);
+    expect(statSync(CONFIG_FILE).mode & 0o777).toBe(0o600);
   });
 
-  it("returns null for corrupted config", () => {
+  it("reports corrupted config", () => {
     writeFileSync(CONFIG_FILE, "not json{{{");
-    expect(loadConfig()).toBeNull();
+    expect(() => loadConfig()).toThrow("Could not read");
   });
 
   it("supports gemini provider config", () => {

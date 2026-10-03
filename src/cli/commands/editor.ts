@@ -29,6 +29,9 @@ export function editorMode(): string | null {
 
   const prompt = readFileSync(tmpFile, "utf-8").trim();
   cleanupFile(tmpFile);
+  process.removeListener("SIGINT", onExit);
+  process.removeListener("SIGTERM", onExit);
+  process.removeListener("exit", onExit);
 
   if (!prompt) {
     return null;

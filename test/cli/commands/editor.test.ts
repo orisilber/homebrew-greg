@@ -22,7 +22,7 @@ describe("editor mode", () => {
     expect(result.stderr).toContain("nothing to do");
   });
 
-  it("returns the prompt text from the editor", { timeout: 15_000 }, () => {
+  it("returns the prompt text from the editor", () => {
     const fakeEditor = join(tmpdir(), "greg-fake-editor-prompt.sh");
     writeFileSync(
       fakeEditor,
@@ -45,5 +45,5 @@ describe("editor mode", () => {
 
     // It should NOT show "nothing to do" — the prompt was non-empty
     expect(result.stderr).not.toContain("nothing to do");
-  });
+  }, 15_000);
 });

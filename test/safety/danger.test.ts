@@ -17,7 +17,7 @@ describe("isDangerous", () => {
   it("safe: git log", () => expect(isDangerous("git log --oneline -10")).toBe(false));
   it("safe: git diff", () => expect(isDangerous("git diff HEAD~1")).toBe(false));
   it("safe: ps", () => expect(isDangerous("ps aux")).toBe(false));
-  it("safe: pipe chain (read-only)", () => expect(isDangerous("find . -name '*.log' | xargs cat")).toBe(false));
+  it("confirmation: compound shell command", () => expect(isDangerous("find . -name '*.log' | xargs cat")).toBe(true));
   it("safe: curl GET", () => expect(isDangerous("curl https://example.com")).toBe(false));
 
   // ── Dangerous: file deletion ────────────────────────────────────────────
@@ -64,4 +64,23 @@ describe("isDangerous", () => {
   it("dangerous: curl POST", () => expect(isDangerous("curl -X POST https://api.example.com")).toBe(true));
   it("dangerous: curl -o", () => expect(isDangerous("curl -o file.zip https://example.com/file")).toBe(true));
   it("dangerous: wget", () => expect(isDangerous("wget https://example.com/file.tar.gz")).toBe(true));
+});
+
+
+describe("conservative execution policy", () => {
+  it("requires confirmation for deletion, unknown programs, and git global flags", () => {
+    for (const command of ["find . -type f -delete", "python3 cleanup.py", "git -C /tmp/example reset --hard",
+      "curl --data payload https://example.com", "tree -ao listing.txt", "file -C", "sort --output=sorted.txt input.txt",
+      "rg --pre=script pattern", "ls && rm file", "echo $(touch file)", "cat <(python3 script.py)"]) {
+      expect(isDangerous(command)).toBe(true);
+    }
+  });
+  it("allows simple read commands and literal quoted text", () => {
+    expect(isDangerous("git -C /tmp/example status")).toBe(false);
+    expect(isDangerous("echo 'rm -rf $(anything)'")).toBe(false);
+    expect(isDangerous("cat 'file with spaces.txt'")).toBe(false);
+  });
+  it("treats malformed and empty commands as unknown", () => {
+    for (const command of ["", "cat 'unterminated", "ls \\", "ls\u00a0rm"]) expect(isDangerous(command)).toBe(true);
+  });
 });

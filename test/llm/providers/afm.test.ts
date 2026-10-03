@@ -10,7 +10,7 @@ import {
   AFM_SWIFT_SRC,
 } from "../../../src";
 
-describe("AFM bridge", () => {
+describe.skipIf(platform() !== "darwin")("AFM bridge", () => {
   it("detects macOS for AFM support", () => {
     expect(isAFMSupported()).toBe(platform() === "darwin");
   });
@@ -23,7 +23,7 @@ describe("AFM bridge", () => {
     try { unlinkSync(AFM_BINARY); } catch {}
     expect(ensureAFMBinary()).toBe(true);
     expect(existsSync(AFM_BINARY)).toBe(true);
-  });
+  }, 60_000);
 
   it("reports availability status via --check", () => {
     const status = checkAFMAvailability();
@@ -40,7 +40,7 @@ describe("AFM bridge", () => {
       encoding: "utf-8",
       timeout: 10_000,
     });
-    expect([0, 1]).toContain(result.status);
+    expect(result.status !== null && [0, 1].includes(result.status)).toBe(true);
   });
 
   it("bridge rejects invalid JSON", () => {

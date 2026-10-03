@@ -1,5 +1,6 @@
 import Foundation
 import FoundationModels
+import Darwin
 
 struct Input: Codable {
     let systemPrompt: String
@@ -37,8 +38,21 @@ guard let input = try? JSONDecoder().decode(Input.self, from: inputData) else {
 Task {
     do {
         let session = LanguageModelSession(instructions: input.systemPrompt)
-        let response = try await session.respond(to: input.userPrompt)
-        print(response.content)
+        if CommandLine.arguments.contains("--stream") {
+            var previous = ""
+            for try await partial in session.streamResponse(to: input.userPrompt) {
+                let text = partial.content
+                guard text.hasPrefix(previous) else {
+                    throw NSError(domain: "Greg", code: 1, userInfo: [NSLocalizedDescriptionKey: "Model revised an already streamed command."])
+                }
+                print(String(text.dropFirst(previous.count)), terminator: "")
+                fflush(stdout)
+                previous = text
+            }
+        } else {
+            let response = try await session.respond(to: input.userPrompt)
+            print(response.content)
+        }
     } catch {
         FileHandle.standardError.write("Error: \(error.localizedDescription)\n".data(using: .utf8)!)
         exit(1)

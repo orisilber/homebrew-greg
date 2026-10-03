@@ -26,6 +26,10 @@ export function parseConfig(value: unknown): GregConfig {
     if (typeof value.includeHistory !== "boolean") throw new Error("Config includeHistory must be a boolean.");
     config.includeHistory = value.includeHistory;
   }
+  if ("rememberSession" in value) {
+    if (typeof value.rememberSession !== "boolean") throw new Error("Config rememberSession must be a boolean.");
+    config.rememberSession = value.rememberSession;
+  }
   if ("timeoutMs" in value) {
     if (typeof value.timeoutMs !== "number" || !Number.isSafeInteger(value.timeoutMs)
       || value.timeoutMs < 1 || value.timeoutMs > 600_000) {

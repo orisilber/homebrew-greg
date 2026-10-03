@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { join } from "path";
 import { spawnSync } from "child_process";
 import { parseArgs } from "../../src/cli/router";
+import { VERSION } from "../../src/version";
 
 const CLI = join(import.meta.dir, "../../bin/greg.ts");
 function runGreg(args: string[]) {
@@ -9,6 +10,11 @@ function runGreg(args: string[]) {
 }
 
 describe("router", () => {
+  it("reports the package version without setup or a model request", () => {
+    const result = runGreg(["--version"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(`greg ${VERSION}\n`);
+  });
   it("shows help without configuring or contacting a provider", () => {
     const result = runGreg(["--help"]);
     expect(result.status).toBe(0);

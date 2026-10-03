@@ -42,6 +42,9 @@ the bridge.
 | `--timings` | Print local context, first-text, generation, and total generation times to stderr. |
 | `--timeout MS` | Set the generation deadline, from 1 to 600000 milliseconds. |
 | `--no-stream` | Hide the live preview. |
+| `--no-context` | Skip reading and saving terminal memory for this request. |
+| `--forget` | Clear this terminal's memory without making a model request. |
+| `--version` | Show the installed version. |
 | `--setup` | Configure the provider and API key. |
 | `--help` | Show usage. |
 
@@ -58,6 +61,34 @@ Diagnostics and live previews go to stderr. Piping `greg --preview` produces onl
 the completed command on stdout. Commands requiring confirmation cannot execute
 when stdin is not a terminal.
 
+## Follow-up requests
+
+Greg remembers recent commands in the current terminal. You can build on a
+command it generated, including one you only previewed:
+
+```bash
+greg --preview find PDF files here
+greg --preview same thing but recursively
+greg --preview only show the first 5
+```
+
+After an executed command, Greg also remembers its exit status and a bounded
+excerpt of stdout and stderr. You can ask it to fix an error or refine the result.
+Previewed, copied, declined, and blocked commands are recorded as not executed.
+
+Each terminal has separate memory. Greg stores up to five recent turns locally
+with owner-only permissions, and sends a smaller excerpt to your configured model
+on the next request. Apple Intelligence receives less context to fit its smaller
+context window. Context expires after 24 hours; inactive terminal records are
+cleaned up when Greg next saves a turn. Greg does not capture commands you run
+outside Greg or read the terminal's scrollback.
+
+Use `greg --forget` to clear this terminal's memory. Use `--no-context` before a
+request to skip reading and saving memory for that one turn, or set
+`rememberSession` to `false` to disable memory altogether. In scripts, set a
+unique `GREG_SESSION_ID` to give related requests a shared session. Without a
+terminal or session ID, Greg runs without memory.
+
 ## Configuration
 
 Setup saves `~/.config/greg/config.json` with owner-only permissions. Edit that
@@ -67,6 +98,7 @@ file to change the provider, model, or these optional settings:
 | --- | --- | --- |
 | `customInstructions` | Empty | Add preferences such as "Prefer rg for searches and jq for JSON." to each request. |
 | `includeHistory` | `false` | Include up to 10 recent zsh history lines for cloud providers, or 5 for Apple Intelligence, from a bounded 16 KiB read. |
+| `rememberSession` | `true` | Remember Greg commands and bounded output in the current terminal. |
 | `timeoutMs` | `30000` | Set the generation deadline unless overridden by `--timeout`. |
 
 Greg supplies the working directory, OS, and a limited directory listing.
@@ -92,6 +124,15 @@ bun run test
 Tests build and exercise the CLI, use temporary configuration, and redirect
 cloud requests to local HTTP fixtures. Terminal checks use Python 3. On macOS,
 the suite also compiles and checks the Apple Intelligence bridge.
+
+To publish a version after committing and pushing the feature:
+
+```bash
+bash scripts/release.sh 0.5.0
+```
+
+The release script checks the CLI, tags and publishes the release, and updates
+the Homebrew formula with the archive checksum.
 
 ## License
 

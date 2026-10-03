@@ -1,3 +1,5 @@
 node_modules/
 src/afm-bridge
 *.tgz
+
+.DS_Store

@@ -8,6 +8,8 @@ import { getTerminalContext, LIMITS_AFM, LIMITS_CLOUD } from "../../llm/context"
 import { buildSystemPrompt } from "../../llm/prompt";
 import { callLLM } from "../../llm/dispatcher";
 import { DEFAULT_TIMEOUT_MS } from "../../config/config";
+import { resolveSessionId, buildSessionContext, appendSession, type CommandResult } from "../../session/memory";
+import { executeCommand } from "../execute";
 import { isDangerous } from "../../safety/danger";
 
 interface Timing {
@@ -28,6 +30,13 @@ export async function getCommand(config: GregConfig, prompt: string, options: Ge
 
 export async function runCommand(config: GregConfig, prompt: string, options: RunOptions = {}): Promise<void> {
   const started = performance.now();
+  const sessionId = options.context === false || config.rememberSession === false ? null : resolveSessionId();
+  const remember = (command: string, result: CommandResult) => {
+    if (!sessionId) return;
+    try {
+      appendSession(sessionId, { request: prompt, command, cwd: process.cwd(), createdAt: Date.now(), result }, config.apiKey);
+    } catch { console.error(C.yellow("Could not save terminal memory. This turn will not be remembered.")); }
+  };
   const timeoutMs = options.timeoutMs ?? config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   let cancellationCode: number | undefined;
@@ -45,7 +54,8 @@ export async function runCommand(config: GregConfig, prompt: string, options: Ru
     if (config.provider !== "afm" && !config.apiKey) throw new Error("No API key configured. Run greg --setup.");
     const limits = config.provider === "afm" ? LIMITS_AFM : LIMITS_CLOUD;
     const ctx = getTerminalContext(limits, config.includeHistory);
-    const systemPrompt = buildSystemPrompt(ctx, config.customInstructions);
+    const systemPrompt = buildSystemPrompt(ctx, config.customInstructions)
+      + (sessionId ? buildSessionContext(sessionId, config.provider) : "");
     timing.contextMs = performance.now() - started;
     generationStarted = performance.now();
     console.error(C.dim("  Generating command..."));
@@ -93,9 +103,10 @@ export async function runCommand(config: GregConfig, prompt: string, options: Ru
     if (options.mode === "copy") {
       if (platform() !== "darwin") throw new Error("--copy requires macOS. Use --preview to print the command.");
       const result = spawnSync("pbcopy", [], { input: command, encoding: "utf8", timeout: 3000 });
-      if (result.error || result.status !== 0) throw new Error("Could not copy the command to the clipboard.");
+      if (result.error || result.status !== 0) { remember(command, { kind: "failed", message: "Could not copy the command." }); throw new Error("Could not copy the command to the clipboard."); }
       console.error(C.dim("Copied. Nothing executed."));
     }
+    remember(command, { kind: options.mode === "copy" ? "copied" : "previewed" });
     return;
   }
 
@@ -104,12 +115,14 @@ export async function runCommand(config: GregConfig, prompt: string, options: Ru
     if (!process.stdin.isTTY) {
       console.error(C.yellow("This command needs confirmation. Run Greg in a terminal, or use --preview."));
       process.exitCode = 1;
+      remember(command, { kind: "blocked" });
       return;
     }
     const answer = await ask(`${C.yellow("This command may have side effects. Run?")} [y/N] `);
-    if (!confirmsExecution(answer)) { console.error(C.dim("Aborted.")); return; }
+    if (!confirmsExecution(answer)) { console.error(C.dim("Aborted.")); remember(command, { kind: "declined" }); return; }
   }
-  const result = spawnSync(command, { stdio: "inherit", shell: "/bin/zsh" });
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? (result.signal === "SIGINT" ? 130 : 1);
+  const result = await executeCommand(command);
+  remember(command, result);
+  if (result.kind === "failed") { console.error(C.red(result.message)); process.exitCode = 1; return; }
+  process.exitCode = result.exitCode ?? (result.signal === "SIGINT" ? 130 : result.signal === "SIGTERM" ? 143 : 1);
 }

@@ -66,7 +66,7 @@ function fixture(provider: Provider = "openai", scenario: Scenario = "normal", c
       }), { headers: { "Content-Type": "text/event-stream" } });
     },
   });
-  const env = { ...process.env, GREG_CONFIG_DIR: configDir, GREG_FIXTURE_URL: `http://127.0.0.1:${server.port}` };
+  const env = { ...process.env, GREG_CONFIG_DIR: configDir, GREG_SESSION_ID: root, GREG_FIXTURE_URL: `http://127.0.0.1:${server.port}` };
   const launch = (args: string[], options: { tty?: boolean; answer?: string; onOutput?: (text: string) => void; env?: Record<string, string> } = {}) => {
     const command = ["node", "--import", REDIRECT, CLI, ...args];
     const childEnv = { ...env, ...options.env };
@@ -82,7 +82,7 @@ function fixture(provider: Provider = "openai", scenario: Scenario = "normal", c
     });
     return { child, result };
   };
-  return { root, sentinel, configDir, generated, requests, requestStarted, release, launch,
+  return { root, sentinel, configDir, generated, requests, requestStarted, release, launch, env,
     close() { release.resolve(); server.stop(true); rmSync(root, { recursive: true, force: true }); } };
 }
 
@@ -124,6 +124,20 @@ describe("built CLI generation", () => {
     const f = fixture("openai", "normal", "echo fixture-output");
     try { const result = await f.launch(["say hello"]).result; expect(result.status).toBe(0); expect(result.out).toBe("fixture-output\n"); }
     finally { f.close(); }
+  });
+  it("preserves binary command output while collecting a text excerpt", async () => {
+    const f = fixture("openai", "normal", "cat binary-fixture.bin");
+    try {
+      const bytes = Buffer.from([0, 255, 254, 128, 10, 195, 169]);
+      writeFileSync(join(f.root, "binary-fixture.bin"), bytes);
+      const child = spawn("node", ["--import", REDIRECT, CLI, "read this file"], {
+        cwd: f.root, env: f.env, stdio: ["ignore", "pipe", "pipe"],
+      });
+      const chunks: Buffer[] = [];
+      child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk)); child.stderr.resume();
+      expect(await new Promise<number | null>(resolve => child.on("close", resolve))).toBe(0);
+      expect(Buffer.concat(chunks)).toEqual(bytes);
+    } finally { f.close(); }
   });
   it("refuses unknown commands without an interactive terminal", async () => {
     const f = fixture();
@@ -195,4 +209,88 @@ describe("built CLI generation", () => {
       expect(result.status).toBe(0); expect(readFileSync(clipboard, "utf8")).toBe(f.generated); expect(existsSync(f.sentinel)).toBe(false);
     } finally { f.close(); }
   });
+  it("carries commands and execution output into follow-ups in the same terminal", async () => {
+    const f = fixture("openai", "normal", "echo followup-evidence");
+    try {
+      expect((await f.launch(["first request"]).result).status).toBe(0);
+      await f.launch(["--preview", "modify that command"]).result;
+      const prompt = JSON.stringify(f.requests.at(-1));
+      expect(prompt).toContain("first request");
+      expect(prompt).toContain("followup-evidence");
+      expect(prompt).toContain('executed');
+      expect(prompt).toContain('exitCode');
+      expect(f.requests.length).toBe(2);
+    } finally { f.close(); }
+  });
+  it("keeps preview and declined commands marked as not executed", async () => {
+    const f = fixture();
+    try {
+      await f.launch(["--preview", "preview this"]).result;
+      await f.launch(["decline this"], { tty: true, answer: "" }).result;
+      await f.launch(["--preview", "modify that"]).result;
+      const prompt = JSON.stringify(f.requests.at(-1));
+      expect(prompt).toContain("previewed"); expect(prompt).toContain("declined");
+      expect(existsSync(f.sentinel)).toBe(false);
+    } finally { f.close(); }
+  });
+  it("carries a failed command's exit status and stderr into the next request", async () => {
+    const f = fixture("openai", "normal", "cat missing-memory-fixture-file");
+    try {
+      expect((await f.launch(["first request"]).result).status).toBe(1);
+      await f.launch(["--preview", "fix that error"]).result;
+      const prompt = JSON.stringify(f.requests.at(-1));
+      expect(prompt).toContain("missing-memory-fixture-file");
+      expect(prompt).toContain("exitCode"); expect(prompt).toContain("No such file");
+    } finally { f.close(); }
+  });
+  it("isolates terminals and lets a request bypass memory without replacing it", async () => {
+    const f = fixture("openai", "normal", "echo remembered-turn");
+    try {
+      await f.launch(["--preview", "remember this request"]).result;
+      await f.launch(["--preview", "another terminal"], { env: { GREG_SESSION_ID: "other-terminal" } }).result;
+      expect(JSON.stringify(f.requests.at(-1))).not.toContain("remember this request");
+      await f.launch(["--no-context", "--preview", "one-off request"]).result;
+      expect(JSON.stringify(f.requests.at(-1))).not.toContain("remember this request");
+      await f.launch(["--preview", "back to the first terminal"]).result;
+      expect(JSON.stringify(f.requests.at(-1))).toContain("remember this request");
+      expect(JSON.stringify(f.requests.at(-1))).not.toContain("one-off request");
+    } finally { f.close(); }
+  });
+  it("forgets terminal memory without making a model request", async () => {
+    const f = fixture();
+    try {
+      await f.launch(["--preview", "remember this request"]).result;
+      expect((await f.launch(["--forget"]).result).status).toBe(0);
+      expect(f.requests.length).toBe(1);
+      await f.launch(["--preview", "fresh request"]).result;
+      expect(JSON.stringify(f.requests.at(-1))).not.toContain("remember this request");
+    } finally { f.close(); }
+  });
+  it("disables both reading and saving memory through configuration", async () => {
+    const f = fixture("openai", "normal", "echo remembered-turn");
+    try {
+      const configFile = join(f.configDir, "config.json");
+      const config = JSON.parse(readFileSync(configFile, "utf8"));
+      writeFileSync(configFile, JSON.stringify({ ...config, rememberSession: false }));
+      await f.launch(["--preview", "do not remember this"]).result;
+      await f.launch(["--preview", "another private request"]).result;
+      expect(JSON.stringify(f.requests.at(-1))).not.toContain("PREVIOUS GREG");
+      expect(existsSync(join(f.configDir, "sessions"))).toBe(false);
+    } finally { f.close(); }
+  });
+  it("automatically shares memory between Greg invocations in the same terminal shell", async () => {
+    const f = fixture("openai", "normal", "echo shell-memory-evidence");
+    try {
+      const child = spawn("python3", [join(ROOT, "test/helpers/shell-session.py"), JSON.stringify({
+        commands: ["first shell request", "modify that command"].map(request => ["node", "--import", REDIRECT, CLI, "--preview", request]),
+        cwd: f.root,
+        env: f.env,
+      })], { stdio: ["ignore", "pipe", "pipe"] });
+      const status = await new Promise(resolve => child.on("close", resolve));
+      expect(status).toBe(0);
+      expect(JSON.stringify(f.requests.at(-1))).toContain("first shell request");
+      expect(JSON.stringify(f.requests.at(-1))).toContain("shell-memory-evidence");
+    } finally { f.close(); }
+  });
+
 });

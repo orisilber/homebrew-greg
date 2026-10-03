@@ -6,6 +6,7 @@ export interface GregConfig {
   model?: string;
   customInstructions?: string;
   includeHistory?: boolean;
+  rememberSession?: boolean;
   timeoutMs?: number;
 }
 
@@ -30,4 +31,5 @@ export interface RunOptions {
   timings?: boolean;
   timeoutMs?: number;
   stream?: boolean;
+  context?: boolean;
 }

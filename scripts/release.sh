@@ -5,7 +5,6 @@ set -euo pipefail
 
 REPO="orisilber/homebrew-greg"
 FORMULA="Formula/greg.rb"
-CASK="Casks/greg.rb"
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -56,14 +55,6 @@ node -e "
 dim "Building CLI dist..."
 bun run build
 
-# ── Build UI ─────────────────────────────────────────────────────────────────
-
-dim "Building Greg.app..."
-bash swift/ui/build.sh
-
-dim "Zipping Greg.app..."
-(cd swift/ui/build && rm -f Greg.app.zip && zip -r Greg.app.zip Greg.app)
-
 # ── Commit, tag, push ───────────────────────────────────────────────────────
 
 dim "Committing and tagging..."
@@ -74,12 +65,12 @@ git tag "$TAG"
 dim "Pushing to GitHub..."
 git push origin main --tags
 
-# ── Create GitHub release with UI app ────────────────────────────────────────
+# ── Create GitHub release ───────────────────────────────────────────────────
 
-dim "Creating GitHub release with Greg.app..."
-gh release create "$TAG" swift/ui/build/Greg.app.zip \
+dim "Creating GitHub release..."
+gh release create "$TAG" \
   --title "$TAG" \
-  --notes "Release $TAG — CLI and UI"
+  --notes "Release $TAG"
 
 # ── Update CLI formula SHA ───────────────────────────────────────────────────
 
@@ -116,38 +107,10 @@ class Greg < Formula
 end
 RUBY
 
-# ── Update UI cask SHA ───────────────────────────────────────────────────────
+# ── Commit and push formula ─────────────────────────────────────────────────
 
-APP_ZIP_URL="https://github.com/$REPO/releases/download/$TAG/Greg.app.zip"
-
-dim "Downloading Greg.app.zip to compute SHA256..."
-APP_SHA=$(curl -sL "$APP_ZIP_URL" | shasum -a 256 | awk '{print $1}')
-
-dim "Updating cask (version=$VERSION, sha=$APP_SHA)..."
-cat > "$CASK" <<RUBY
-cask "greg" do
-  version "$VERSION"
-  sha256 "$APP_SHA"
-
-  url "https://github.com/$REPO/releases/download/v#{version}/Greg.app.zip"
-  name "Greg"
-  desc "Native macOS floating assistant powered by LLMs"
-  homepage "https://github.com/$REPO"
-
-  depends_on macos: ">= :sequoia"
-
-  app "Greg.app"
-
-  zap trash: [
-    "~/.config/greg",
-  ]
-end
-RUBY
-
-# ── Commit and push formula + cask ───────────────────────────────────────────
-
-git add "$FORMULA" "$CASK"
-git commit -m "Update formula and cask to $TAG"
+git add "$FORMULA"
+git commit -m "Update formula to $TAG"
 git push origin main
 
 # ── Done ────────────────────────────────────────────────────────────────────
@@ -157,8 +120,6 @@ green "Released $TAG"
 echo ""
 dim "Users can install/upgrade with:"
 echo "  brew tap orisilber/greg"
-echo "  brew install greg              # CLI"
-echo "  brew install --cask greg       # UI app"
-echo "  brew upgrade greg              # upgrade CLI"
-echo "  brew upgrade --cask greg       # upgrade UI"
+echo "  brew install greg"
+echo "  brew upgrade greg"
 echo ""

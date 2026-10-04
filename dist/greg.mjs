@@ -642,7 +642,7 @@ ${JSON.stringify(selected)}
 `;
 }
 // package.json
-var version = "0.5.1";
+var version = "0.5.2";
 
 // src/version.ts
 var VERSION = version;

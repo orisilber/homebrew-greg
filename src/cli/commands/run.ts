@@ -49,7 +49,7 @@ export async function runCommand(config: GregConfig, prompt: string, options: Ru
   let command: string;
   const timing: Timing = { contextMs: 0, generationMs: 0, totalMs: 0 };
   let generationStarted = started;
-  const showStream = (options.stream ?? true) && !!process.stderr.isTTY;
+  const showStream = options.mode === "preview" && (options.stream ?? true) && !!process.stderr.isTTY;
   try {
     if (config.provider !== "afm" && !config.apiKey) throw new Error("No API key configured. Run greg --setup.");
     const limits = config.provider === "afm" ? LIMITS_AFM : LIMITS_CLOUD;
@@ -110,8 +110,8 @@ export async function runCommand(config: GregConfig, prompt: string, options: Ru
     return;
   }
 
-  console.error(`\n${C.greenBold(command)}\n`);
   if (isDangerous(command)) {
+    console.error(`\n${C.greenBold(command)}\n`);
     if (!process.stdin.isTTY) {
       console.error(C.yellow("This command needs confirmation. Run Greg in a terminal, or use --preview."));
       process.exitCode = 1;

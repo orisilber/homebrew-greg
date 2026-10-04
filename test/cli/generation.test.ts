@@ -125,6 +125,28 @@ describe("built CLI generation", () => {
     try { const result = await f.launch(["say hello"]).result; expect(result.status).toBe(0); expect(result.out).toBe("fixture-output\n"); }
     finally { f.close(); }
   });
+  it("runs commands without a preview when confirmation is unnecessary", async () => {
+    const f = fixture("openai", "normal", "echo quiet-fixture-result");
+    try {
+      const result = await f.launch(["say hello"], { tty: true }).result;
+      expect(result.status).toBe(0);
+      expect(result.out).toContain("quiet-fixture-result");
+      expect(result.out).not.toContain("Preview (not yet executed)");
+      expect(result.out).not.toContain("echo quiet-fixture-result");
+      expect(result.out).not.toContain("[y/N]");
+    } finally { f.close(); }
+  });
+  it("shows a command once when requesting confirmation", async () => {
+    const f = fixture();
+    try {
+      const result = await f.launch(["make a file"], { tty: true, answer: "" }).result;
+      expect(result.status).toBe(0);
+      expect(result.out).not.toContain("Preview (not yet executed)");
+      expect(result.out.split(f.generated).length - 1).toBe(1);
+      expect(result.out).toContain("[y/N]");
+      expect(existsSync(f.sentinel)).toBe(false);
+    } finally { f.close(); }
+  });
   it("preserves binary command output while collecting a text excerpt", async () => {
     const f = fixture("openai", "normal", "cat binary-fixture.bin");
     try {

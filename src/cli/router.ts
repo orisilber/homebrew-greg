@@ -13,7 +13,7 @@ export const HELP = `Usage: greg [options] [request]
   --copy          Copy the command to the macOS clipboard without executing it
   --timings       Show local context, first-text, and generation timings
   --timeout MS    Request deadline in milliseconds (default: 30000)
-  --no-stream     Hide the live preview
+  --no-stream     Hide live output when using --preview
   --no-context    Skip terminal memory for this request
   --forget        Clear memory for this terminal
   --version       Show the installed version

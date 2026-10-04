@@ -1051,7 +1051,7 @@ async function runCommand(config, prompt, options = {}) {
   let command;
   const timing = { contextMs: 0, generationMs: 0, totalMs: 0 };
   let generationStarted = started;
-  const showStream = (options.stream ?? true) && !!process.stderr.isTTY;
+  const showStream = options.mode === "preview" && (options.stream ?? true) && !!process.stderr.isTTY;
   try {
     if (config.provider !== "afm" && !config.apiKey)
       throw new Error("No API key configured. Run greg --setup.");
@@ -1126,10 +1126,10 @@ async function runCommand(config, prompt, options = {}) {
     remember(command, { kind: options.mode === "copy" ? "copied" : "previewed" });
     return;
   }
-  console.error(`
+  if (isDangerous(command)) {
+    console.error(`
 ${C.greenBold(command)}
 `);
-  if (isDangerous(command)) {
     if (!process.stdin.isTTY) {
       console.error(C.yellow("This command needs confirmation. Run Greg in a terminal, or use --preview."));
       process.exitCode = 1;
@@ -1160,7 +1160,7 @@ var HELP = `Usage: greg [options] [request]
   --copy          Copy the command to the macOS clipboard without executing it
   --timings       Show local context, first-text, and generation timings
   --timeout MS    Request deadline in milliseconds (default: 30000)
-  --no-stream     Hide the live preview
+  --no-stream     Hide live output when using --preview
   --no-context    Skip terminal memory for this request
   --forget        Clear memory for this terminal
   --version       Show the installed version

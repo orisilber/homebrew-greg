@@ -125,14 +125,15 @@ describe("built CLI generation", () => {
     try { const result = await f.launch(["say hello"]).result; expect(result.status).toBe(0); expect(result.out).toBe("fixture-output\n"); }
     finally { f.close(); }
   });
-  it("runs commands without a preview when confirmation is unnecessary", async () => {
+  it("shows executed commands once in green without a live preview", async () => {
     const f = fixture("openai", "normal", "echo quiet-fixture-result");
     try {
       const result = await f.launch(["say hello"], { tty: true }).result;
       expect(result.status).toBe(0);
       expect(result.out).toContain("quiet-fixture-result");
       expect(result.out).not.toContain("Preview (not yet executed)");
-      expect(result.out).not.toContain("echo quiet-fixture-result");
+      expect(result.out.split(f.generated).length - 1).toBe(1);
+      expect(result.out).toContain(`\x1b[1;32m${f.generated}\x1b[0m`);
       expect(result.out).not.toContain("[y/N]");
     } finally { f.close(); }
   });
@@ -143,6 +144,7 @@ describe("built CLI generation", () => {
       expect(result.status).toBe(0);
       expect(result.out).not.toContain("Preview (not yet executed)");
       expect(result.out.split(f.generated).length - 1).toBe(1);
+      expect(result.out).toContain(`\x1b[1;32m${f.generated}\x1b[0m`);
       expect(result.out).toContain("[y/N]");
       expect(existsSync(f.sentinel)).toBe(false);
     } finally { f.close(); }

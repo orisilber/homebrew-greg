@@ -10,10 +10,10 @@ greg --timings show git commits from the last week
 ```
 
 Greg makes one generation request per prompt and checks the completed command
-before executing it. Simple recognized read commands run immediately without a
-command preview. Commands that may write files, unknown programs,
+before executing it. Greg shows the completed command once in green, then runs
+simple recognized read commands immediately. Commands that may write files, unknown programs,
 and compound shell commands require an explicit `y` or `yes`. Pressing Enter
-alone declines. Greg shows the completed command once when asking for confirmation.
+alone declines.
 Use `--preview` to see the command without running it, with live output in a terminal.
 These checks control confirmation; they are not a shell sandbox.
 

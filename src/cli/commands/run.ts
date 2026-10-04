@@ -110,8 +110,8 @@ export async function runCommand(config: GregConfig, prompt: string, options: Ru
     return;
   }
 
+  console.error(`\n${C.greenBold(command)}\n`);
   if (isDangerous(command)) {
-    console.error(`\n${C.greenBold(command)}\n`);
     if (!process.stdin.isTTY) {
       console.error(C.yellow("This command needs confirmation. Run Greg in a terminal, or use --preview."));
       process.exitCode = 1;

@@ -1126,10 +1126,10 @@ async function runCommand(config, prompt, options = {}) {
     remember(command, { kind: options.mode === "copy" ? "copied" : "previewed" });
     return;
   }
-  if (isDangerous(command)) {
-    console.error(`
+  console.error(`
 ${C.greenBold(command)}
 `);
+  if (isDangerous(command)) {
     if (!process.stdin.isTTY) {
       console.error(C.yellow("This command needs confirmation. Run Greg in a terminal, or use --preview."));
       process.exitCode = 1;
